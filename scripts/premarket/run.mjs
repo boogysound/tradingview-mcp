@@ -1,0 +1,683 @@
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs';
+import { getState, setSymbol, setTimeframe, setRightOffset } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
+import { getOhlcv } from '/Users/boogy/tradingview-mcp/src/core/data.js';
+import { healthCheck } from '/Users/boogy/tradingview-mcp/src/core/health.js';
+import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture.js';
+import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
+import * as lib from './lib.mjs';
+import * as state from './state.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioPaths } from './draw.mjs';
+import { buildScenarios, buildBriefing } from './briefing.mjs';
+import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
+
+const SCENARIO_PATHS_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_paths.json';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
+
+async function fetchBars(tf, count = 500) {
+  await setTimeframe({ timeframe: String(tf) });
+  await sleep(1500);
+  const raw = await getOhlcv({ count });
+  return raw.bars || raw;
+}
+
+async function main() {
+  const dataWarnings = [];
+  const nowSec = Math.floor(new Date().getTime() / 1000) || Math.floor(Date.now() / 1000);
+  const nowIso = new Date().toISOString();
+  const forceRegimeReset = process.argv.includes('--reset-regime');
+
+  // --- 0. Preconditions ---
+  const health = await healthCheck();
+  if (!health.success || !health.cdp_connected) {
+    console.error(JSON.stringify({ success: false, aborted: true, reason: 'tv_health_check fehlgeschlagen', health }, null, 2));
+    await disconnect().catch(() => {});
+    process.exit(1);
+  }
+
+  const original = await getState();
+
+  // symbol is expected to already be DE40 on this chart; set explicitly per spec step 2
+  // (left as a no-op setSymbol call is risky if the exact ticker differs across brokers,
+  // so we verify first and only force-set if it's clearly wrong)
+  const currentSymbol = health.target_url && health.chart_symbol;
+  if (!/DE40/i.test(String(health.chart_symbol || ''))) {
+    dataWarnings.push(`Chart-Symbol war "${health.chart_symbol}", nicht DE40 — bitte manuell prüfen (kein automatisches setSymbol ausgeführt, um keinen falschen Broker-Ticker zu erzwingen).`);
+  }
+
+  const zonesState = state.readState();
+
+  // --- reconcile local state against what's actually drawn on the chart ---
+  // Protects against drift (state file reset/edited by hand, or a drawing
+  // manually deleted in TradingView): any tracked entry whose shape no longer
+  // exists on the chart is marked removed here, so later duplicate-checks and
+  // redraws work off reality instead of a stale bookkeeping file.
+  const liveShapeIds = await getLiveShapeIds();
+  let orphanedCount = 0;
+  for (const entry of zonesState) {
+    if (entry.status !== 'active' && entry.status !== 'breached' && entry.status !== 'historical') continue;
+    if (!liveShapeIds.has(entry.tv_entity_id)) {
+      entry.status = 'removed';
+      entry.removed_at = nowIso;
+      entry.removed_reason = 'orphaned_not_on_chart';
+      orphanedCount++;
+    }
+  }
+  if (orphanedCount) dataWarnings.push(`${orphanedCount} Zone(n) waren im State aktiv, aber nicht mehr im Chart (manuell gelöscht?) — aus dem State entfernt.`);
+
+  // --- fetch OHLC across timeframes ---
+  const bars12h = await fetchBars(720, 500);
+  const bars4h = await fetchBars(240, 500);
+  const bars15 = await fetchBars(15, 500);
+  const bars1h = await fetchBars(60, 500);
+
+  let bars5 = [];
+  try { bars5 = await fetchBars(5, 500); } catch (e) { dataWarnings.push(`5min-Bars für Entry-Bestätigung nicht verfügbar: ${e.message}`); }
+
+  let dailyBars = null;
+  try { dailyBars = await fetchBars('D', 60); } catch (e) { dataWarnings.push(`Daily-Bars für Overnight-Gap nicht verfügbar: ${e.message}`); }
+
+  await setTimeframe({ timeframe: original.resolution });
+  // Drawing shapes too soon after a timeframe switch can snap the anchor to a
+  // stale/not-yet-rendered bar near the live edge (observed: a rectangle drawn
+  // right after this switch landed exactly 10 bars — 9000s on 15min — earlier
+  // than requested). Give the chart time to fully catch up before any draw().
+  await sleep(2000);
+
+  let tacticalTf = 15, tacticalBars = bars15;
+  if (bars15.length < MIN_15M_BARS) {
+    dataWarnings.push(`15min-Historie unzureichend (${bars15.length} Bars < ${MIN_15M_BARS}) — auf 1H als Zonen-/S-R-Kontext ausgewichen (Precondition 0.3).`);
+    tacticalTf = 60; tacticalBars = bars1h;
+  }
+
+  const lastClose = tacticalBars[tacticalBars.length - 1].close;
+
+  // --- regime: fixed once per Berlin trading day, not re-evaluated intraday
+  // unless explicitly reset (see scripts/premarket/premarket_prompt notes) ---
+  const regimeDateKey = lib.berlinDateTimeParts(nowSec).dateStr;
+  const storedRegime = forceRegimeReset ? null : state.readDailyRegime();
+  let regime;
+  if (storedRegime && storedRegime.date === regimeDateKey) {
+    regime = storedRegime.regime;
+  } else {
+    regime = lib.classifyRegime({ dailyBars, bars4h, tacticalBars, lastClose, nowSec });
+    state.writeDailyRegime(regimeDateKey, regime);
+  }
+
+  // --- 2. swings + 3. MSS/BOS per timeframe ---
+  const bos12h = lib.findBosEvents(bars12h);
+  const bos4h = lib.findBosEvents(bars4h);
+  const bosTactical = lib.findBosEvents(tacticalBars);
+
+  // --- 6. S/D zones (HTF) ---
+  // HTF zones/OBs that price never revisited stay "active" indefinitely under
+  // pure mitigation logic even once months old and far away — a 5% price-
+  // distance relevance filter drops those, keeping only practically tradeable
+  // zones (user-set threshold).
+  const HTF_MAX_PCT_DISTANCE = 0.05;
+  const isRelevant = (z) => lib.isPriceRelevant(z.low, z.high, lastClose, HTF_MAX_PCT_DISTANCE);
+  const zones12h = lib.findSDZones(bars12h, bos12h, 3).filter(isRelevant);
+  const zones4h = lib.findSDZones(bars4h, bos4h, 3).filter(isRelevant);
+
+  // S/D Levels: the user's actual manual-drawing style (single price = open
+  // of the last opposite candle before a move), separate from the zones12h/
+  // zones4h range-based objects above (which still drive entry candidates).
+  // Recency window matches the calibration exercise (15 days) — without it,
+  // the 5%-distance filter alone let through dozens of levels from months
+  // ago that price had simply drifted back near, cluttering the chart.
+  const SD_LEVEL_MAX_AGE_SEC = 15 * 24 * 3600;
+  const levelIsRelevant = (lvl) => lib.isPriceRelevant(lvl.price, lvl.price, lastClose, HTF_MAX_PCT_DISTANCE) && (nowSec - lvl.time) <= SD_LEVEL_MAX_AGE_SEC;
+  // Once a level converts to an S/R line its `type` changes to sr_flip_*, so
+  // the normal same-type findDuplicate check no longer sees it — without this,
+  // a fresh candidate for the same underlying candle gets redrawn, touched
+  // twice again, and converted into a SECOND S/R line at the same spot.
+  // Keyed on created_bar_time (the candle's own time — deterministic, never
+  // changes) rather than status==='active' or price proximity: relying on
+  // live-shape reconciliation to have already caught orphans first is fragile
+  // (a momentary CDP listing hiccup would silently let a duplicate through).
+  // Excludes only status==='removed' (a genuinely invalidated/deleted level
+  // — those should be free to be redetected), matching demand<->support and
+  // supply<->resistance since that's the same underlying level pre/post-flip.
+  // A candle removed for 'sd_level_not_respected' (2+ real breaks) is
+  // permanently resolved — price has already proven it doesn't hold there,
+  // so it must never be redrawn as a fresh, apparently-unbroken level again.
+  // Without this, removing it just freed up the exact same created_bar_time
+  // for redetection on the very next run (found live: 10 legitimately-broken
+  // levels got removed by the break-count fix, then several of them
+  // immediately reappeared as "new" levels moments later).
+  const alreadyTracked = (lvl, timeframe) => {
+    const equivTypes = lvl.type === 'demand'
+      ? ['sd_level_demand', 'sr_flip_support']
+      : ['sd_level_supply', 'sr_flip_resistance'];
+    return zonesState.some(o => o.timeframe === timeframe && equivTypes.includes(o.type) &&
+      o.created_bar_time === lvl.time &&
+      (o.status !== 'removed' || o.removed_reason === 'sd_level_not_respected'));
+  };
+  // Was 0.4% (~103pts) — found via live debugging to be far too wide: with
+  // multiple legitimate, distinct 12H levels only ~140pts apart, their
+  // tolerance radii overlapped into a continuous "wall" that blocked EVERY
+  // 4H candidate, not just genuine same-candle duplicates. 0.05% (~13pts)
+  // still catches the original intended case (12H/4H sharing a candle
+  // boundary, differing by a few points) without the wall effect.
+  const NEAR_12H_PCT = 0.0005;
+  // Existing active 12H levels — needed both to self-dedupe fresh 12H
+  // candidates against each other (see below) and for the 4H-vs-12H
+  // near12h check further down.
+  const existing12hPrices = zonesState
+    .filter(o => o.status !== 'removed' && o.timeframe === 720 && (o.type === 'sd_level_demand' || o.type === 'sd_level_supply' || o.type === 'sr_flip_support' || o.type === 'sr_flip_resistance'))
+    .map(o => ({ type: o.type === 'sr_flip_support' ? 'demand' : o.type === 'sr_flip_resistance' ? 'supply' : (o.type === 'sd_level_demand' ? 'demand' : 'supply'), price: o.price_low }));
+  // 12H levels were never deduped against EACH OTHER (only 4H-vs-12H was) —
+  // over time this let many near-identical 12H levels 15-20 points apart
+  // accumulate into a dense "wall" that then blocked almost every 4H
+  // candidate via the near12h check below (found via live debugging: 33
+  // relevant 4H candidates, 0 survived near12h). Self-dedupe: skip a fresh
+  // 12H candidate if an existing active 12H level of the same type is
+  // already within the same tolerance.
+  const near12hSelf = (lvl) => existing12hPrices.some(l12 => l12.type === lvl.type && Math.abs(l12.price - lvl.price) <= l12.price * NEAR_12H_PCT);
+  const sdLevels12h = lib.findSDLevels(bars12h, { nowSec }).filter(levelIsRelevant).filter(lvl => !alreadyTracked(lvl, 720)).filter(lvl => !near12hSelf(lvl));
+  // 12H takes priority over 4H (user-specified): a 4H level within 0.4% of an
+  // existing/new 12H level of the same type is redundant — the 12H is the
+  // one more likely to be respected, so drop the 4H duplicate before drawing.
+  // Checks BOTH freshly-detected 12H candidates AND already-tracked active
+  // 12H entries in state — the fresh candidates alone miss 12H levels that
+  // were created in an earlier run (alreadyTracked has already excluded them
+  // from sdLevels12h by this point, so they'd otherwise be invisible here).
+  const all12hLevels = [...sdLevels12h, ...existing12hPrices];
+  const near12h = (lvl) => all12hLevels.some(l12 => l12.type === lvl.type && Math.abs(l12.price - lvl.price) <= l12.price * NEAR_12H_PCT);
+  const sdLevels4h = lib.findSDLevels(bars4h, { nowSec }).filter(levelIsRelevant).filter(lvl => !alreadyTracked(lvl, 240)).filter(lvl => !near12h(lvl));
+
+  // --- 4. Order blocks + 5. FVGs ---
+  // Order Blocks (user definition): last opposite-colour candle before an
+  // impulse that BOTH creates an FVG/imbalance AND leads to a confirmed BOS —
+  // computed on 12H/4H (like S/D zones) as well as the tactical timeframe.
+  // Detection runs on the full window (fractals/BOS need surrounding context),
+  // but section 9.3 defines 15min objects as tactical/near-term only — so
+  // patterns older than the same 2-trading-day threshold used for staleness
+  // are dropped here rather than drawn-then-immediately-purged next run.
+  const TACTICAL_MAX_AGE_SEC = 2 * 24 * 3600;
+  const recentEnough = (t) => (nowSec - t) <= TACTICAL_MAX_AGE_SEC;
+  const obs12h = lib.findOrderBlocks(bars12h, bos12h).filter(isRelevant);
+  const obs4h = lib.findOrderBlocks(bars4h, bos4h).filter(isRelevant);
+  const obsTactical = lib.findOrderBlocks(tacticalBars, bosTactical).filter(o => recentEnough(o.time));
+  const fvgsTactical = lib.findFVGs(tacticalBars).filter(g => lib.fvgFillFraction(g, tacticalBars) < 0.5).filter(g => recentEnough(g.time));
+
+  // 1H and 5min OBs were previously invisible to the system entirely (only
+  // 12H/4H/tactical were scanned) — added after finding real, price-relevant
+  // OBs on both that the old scope missed. Skip 1H if it's already the
+  // tactical timeframe (15min-insufficient fallback) to avoid double-drawing
+  // the same candles under two different loops.
+  const obs1h = tacticalTf === 60 ? [] : lib.findOrderBlocks(bars1h, lib.findBosEvents(bars1h)).filter(o => recentEnough(o.time));
+  const obs5m = bars5.length ? lib.findOrderBlocks(bars5, lib.findBosEvents(bars5)).filter(o => recentEnough(o.time)) : [];
+
+  // --- 7. S/R (tactical tf) ---
+  const srLevels = lib.findSRLevels(tacticalBars, { tolerancePct: 0.0005, maxLevels: 8 });
+
+  // --- Trend bias from most recent confirmed 4H BOS ---
+  // Switched from 12H after simulation showed 12H BOS is too infrequent/slow
+  // to react — it can stay stuck on a stale bias for months after price has
+  // already reversed (e.g. stayed "bearish" for 3.5 months in one dataset
+  // while 4H had already flipped bullish). 4H hit ~55-60% vs 12H's ~40-45%
+  // on predicting forward price direction over 10/20/40-bar horizons.
+  const lastBos4hForTrend = bos4h[bos4h.length - 1];
+  const htfBias = lastBos4hForTrend ? lastBos4hForTrend.type : null;
+
+  // Short-term bias: momentum (last 3 tactical candles), not BOS — calibrated
+  // against real data showing BOS lags too much for a "what just happened"
+  // read (see computeLastNBias in lib.mjs). Can disagree with the 4H
+  // medium-term trend (e.g. a sharp intraday pullback against an unbroken 4H
+  // uptrend), which is itself useful information, not a contradiction.
+  const shortTermBias = lib.computeLastNBias(tacticalBars, 3);
+
+  // --- section 9: invalidation/mitigation pass on tracked state ---
+  const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
+  const removedLog = [];
+  const breachedLog = [];
+
+  // Moved up from its original spot further down (after the S/R drawing loop)
+  // so blocks that run earlier in this section — breach/level conversion to
+  // S/R lines — can safely reference it too (they were doing so before this
+  // was defined, a latent ReferenceError bug that never fired only because
+  // those code paths had zero matching entries in every run so far).
+  const dottedCheck = await verifyDottedLinestyleCode();
+  if (!dottedCheck.verified) dataWarnings.push(`Linestyle-Code für "gepunktet" nicht verifiziert (Annahme: 2). Detail: ${JSON.stringify(dottedCheck)}`);
+  const dottedCode = dottedCheck.verified ? dottedCheck.assumed : (dottedCheck.reported ?? 2);
+
+  // sd_level_demand/supply were missing from this list — meaning once drawn,
+  // they never got cleaned up as price drifted away, only ever removed via
+  // an actual break. Found by noticing the OBSERVE section listing 9 stale
+  // 12H levels, most far from current price.
+  const HTF_ZONE_TYPES = ['sd_zone_demand', 'sd_zone_supply', 'order_block_bullish', 'order_block_bearish', 'sd_level_demand', 'sd_level_supply'];
+  for (const entry of zonesState) {
+    if (entry.status !== 'active' && entry.status !== 'breached' && entry.status !== 'historical') continue;
+    let shouldRemove = false, reason = null;
+
+    // Remove all S/R levels (user no longer needs them)
+    if (entry.type === 'sr_support' || entry.type === 'sr_resistance') { shouldRemove = true; reason = 'sr_disabled'; }
+    // PDHL entries are removed daily (they're recalculated fresh each run)
+    else if (entry.type === 'pdh' || entry.type === 'pdl') { shouldRemove = true; reason = 'pdhl_daily_refresh'; }
+    // HTF zones/OBs (12H/4H) that price has drifted more than 5% away from —
+    // no longer practically tradeable, even if never price-invalidated.
+    else if ((entry.timeframe === 720 || entry.timeframe === 240) && HTF_ZONE_TYPES.includes(entry.type) &&
+      !lib.isPriceRelevant(entry.price_low, entry.price_high, lastClose, HTF_MAX_PCT_DISTANCE)) {
+      shouldRemove = true; reason = 'htf_out_of_range';
+    }
+    // A 4H S/D level within 0.4% of an active 12H level of the same type is
+    // redundant — 12H has priority (user-specified), drop the 4H duplicate
+    // even if the 12H one only became active/nearby after this 4H was drawn.
+    else if (entry.timeframe === 240 && (entry.type === 'sd_level_demand' || entry.type === 'sd_level_supply') &&
+      zonesState.some(o => o.status === 'active' && o.timeframe === 720 && o.type === entry.type &&
+        Math.abs(o.price_low - entry.price_low) <= o.price_low * NEAR_12H_PCT)) {
+      shouldRemove = true; reason = 'redundant_with_12h';
+    }
+    else if (entry.status !== 'historical' && state.isInvalidated(entry, barsByTf)) {
+      // For S/D zones: track breach count
+      if ((entry.type === 'sd_zone_demand' || entry.type === 'sd_zone_supply') && entry.breach_count === 1) {
+        // 1st breach: transition to 'breached' state, will be redrawn below
+        entry.status = 'breached';
+        entry.breached_at = nowIso;
+        breachedLog.push({ id: entry.id, breach_count: entry.breach_count });
+      } else {
+        // 2nd breach or other objects: remove
+        shouldRemove = true; reason = 'invalidated';
+      }
+    } else if (state.isStale(entry, nowSec)) { shouldRemove = true; reason = 'stale_15m'; }
+
+    if (shouldRemove) {
+      const r = await remove(entry.tv_entity_id);
+      entry.status = 'removed';
+      entry.removed_at = nowIso;
+      entry.removed_reason = reason;
+      removedLog.push({ id: entry.id, reason, remove_result: r });
+    }
+  }
+
+  // --- Clean up pre-existing 12H self-duplicates ---
+  // One-time cleanup for the dense "wall" that accumulated before near12hSelf
+  // existed above (many near-identical 12H levels 15-20 points apart, found
+  // via live debugging — it was silently blocking almost every 4H candidate
+  // via the near12h check). For each pair within tolerance, keep the OLDER
+  // one (earlier created_at) and remove the newer duplicate.
+  const active12hLevels = zonesState.filter(e => e.status === 'active' && e.timeframe === 720 && (e.type === 'sd_level_demand' || e.type === 'sd_level_supply'));
+  const sorted12h = [...active12hLevels].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const kept12h = [];
+  for (const entry of sorted12h) {
+    const dup = kept12h.find(k => k.type === entry.type && Math.abs(k.price_low - entry.price_low) <= k.price_low * NEAR_12H_PCT);
+    if (dup) {
+      const r = await remove(entry.tv_entity_id);
+      entry.status = 'removed';
+      entry.removed_at = nowIso;
+      entry.removed_reason = 'duplicate_12h_self';
+      removedLog.push({ id: entry.id, reason: 'duplicate_12h_self', remove_result: r });
+    } else {
+      kept12h.push(entry);
+    }
+  }
+
+  // --- Convert breached S/D zones to S/R levels ---
+  for (const entry of zonesState) {
+    if (entry.status !== 'breached') continue;
+    // Remove old rectangle drawing
+    await remove(entry.tv_entity_id);
+
+    // Convert to S/R level: demand → support, supply → resistance
+    // (distinct type from the old auto-clustered sr_support/sr_resistance,
+    // which the user disabled — this flip-conversion must survive that ban)
+    const isSupport = entry.type === 'sd_zone_demand';
+    const newType = isSupport ? 'sr_flip_support' : 'sr_flip_resistance';
+    const srPrice = isSupport ? entry.price_low : entry.price_high;
+
+    // Redraw as horizontal S/R line
+    const srLabel = `${isSupport ? 'Support' : 'Resistance'} ${srPrice.toFixed(1)} (ex-${entry.type === 'sd_zone_demand' ? 'Demand' : 'Supply'})`;
+    const r = await draw('horizontal_line',
+      { time: tacticalBars[tacticalBars.length - 1].time, price: srPrice },
+      undefined,
+      { linecolor: COLORS.sr_level, linewidth: 2, linestyle: dottedCode, showLabel: true, textcolor: COLORS.sr_level, fontsize: 10 },
+      srLabel);
+
+    if (r.ok) {
+      entry.tv_entity_id = r.entity_id;
+      entry.type = newType;
+      entry.price_high = srPrice;
+      entry.price_low = srPrice;
+      entry.converted_at = nowIso;
+      entry.status = 'active'; // reactivate as S/R level
+    }
+  }
+
+  // --- S/D Level lifecycle (user-specified): fresh (lila/orange) -> 1st touch
+  // (hellblau, same label). SR-line conversion on 2nd touch was tried and
+  // then explicitly disabled by the user — touches beyond the 1st no longer
+  // change anything. 2 actual breaks (close through, "nicht respektiert")
+  // still deletes the level outright.
+  for (const entry of zonesState) {
+    if (entry.status !== 'active') continue;
+    if (entry.type !== 'sd_level_demand' && entry.type !== 'sd_level_supply') continue;
+
+    const bars = barsByTf[entry.timeframe];
+    if (!bars || !bars.length) continue;
+    const { touchedNew, brokenNew, lastCheckedTime } = state.checkLevelInteraction(entry, bars);
+    // A gap can close beyond the level without any candle's wick-range ever
+    // containing the exact price — brokenNew can be >0 while touchedNew is
+    // 0. The old `if (!touchedNew) continue` skipped break-tracking entirely
+    // in that case, so real breaks (13 of them, found live) never got
+    // counted. Only skip when there's neither a touch nor a break.
+    if (!touchedNew && !brokenNew) continue;
+
+    entry.touch_count = (entry.touch_count ?? 0) + touchedNew;
+    entry.break_count = (entry.break_count ?? 0) + brokenNew;
+    entry.last_checked_time = lastCheckedTime;
+
+    if (entry.break_count >= 2) {
+      const r = await remove(entry.tv_entity_id);
+      entry.status = 'removed';
+      entry.removed_at = nowIso;
+      entry.removed_reason = 'sd_level_not_respected';
+      removedLog.push({ id: entry.id, reason: 'sd_level_not_respected', remove_result: r });
+    } else if (entry.touch_count >= 1 && !entry.colored_touched) {
+      await remove(entry.tv_entity_id);
+      const r = await draw('horizontal_ray', { time: entry.created_bar_time, price: entry.price_low }, undefined,
+        { linecolor: COLORS.sd_level_touched, linewidth: 1, linestyle: 2 }, entry.label);
+      if (r.ok) {
+        entry.tv_entity_id = r.entity_id;
+        entry.colored_touched = true;
+      }
+    }
+  }
+
+  // --- draw newly detected, not-yet-tracked zones ---
+  const newEntries = [];
+
+  // status defaults to 'active' (subject to next run's invalidation check).
+  // Zones already broken at the moment of first detection are drawn once for
+  // flip-level reference but tracked as 'historical' so they aren't drawn-then
+  // -immediately-invalidated on the very next run (same underlying fact,
+  // already reflected once via the mitigated=true / "(gebrochen)" label).
+  async function maybeDrawZone(type, timeframe, z, colorKey, label, extraOverride = {}, status = 'active') {
+    const candidate = { type, timeframe, price_low: z.low, price_high: z.high };
+    if (state.findDuplicate(zonesState, candidate)) return;
+    const isRgba = COLORS[colorKey].length === 9;
+    const overrides = isRgba ? rgbaToTvOverride(COLORS[colorKey], extraOverride) : { linecolor: COLORS[colorKey], backgroundColor: COLORS[colorKey], color: COLORS[colorKey], transparency: 78, linewidth: 1, ...extraOverride };
+    const farRight = tacticalBars[tacticalBars.length - 1].time + 20 * 3600;
+    const r = await draw('rectangle', { time: z.time, price: z.low }, { time: farRight, price: z.high }, overrides, label);
+    if (r.ok) {
+      const entry = {
+        id: state.makeEntryId(candidate, nowIso), tv_entity_id: r.entity_id, type, timeframe,
+        price_high: z.high, price_low: z.low, created_at: nowIso, created_bar_time: z.time, status,
+      };
+      zonesState.push(entry);
+      newEntries.push(entry);
+    }
+  }
+
+  // Draws a fresh S/D level (single-price ray). Label is stored on the state
+  // entry (unlike maybeDrawZone's rectangles) because the touch-lifecycle
+  // above needs to redraw the exact same label when recoloring to hellblau.
+  async function maybeDrawLevel(type, timeframe, lvl, colorKey, label) {
+    const candidate = { type, timeframe, price_low: lvl.price, price_high: lvl.price };
+    if (state.findDuplicate(zonesState, candidate)) return;
+    const r = await draw('horizontal_ray', { time: lvl.time, price: lvl.price }, undefined,
+      { linecolor: COLORS[colorKey], linewidth: 1, linestyle: 2 }, label);
+    if (r.ok) {
+      const entry = {
+        id: state.makeEntryId(candidate, nowIso), tv_entity_id: r.entity_id, type, timeframe,
+        price_high: lvl.price, price_low: lvl.price, created_at: nowIso, created_bar_time: lvl.time,
+        status: 'active', label, touch_count: 0, break_count: 0,
+      };
+      zonesState.push(entry);
+      newEntries.push(entry);
+    }
+  }
+
+  for (const lvl of sdLevels12h) await maybeDrawLevel(lvl.type === 'demand' ? 'sd_level_demand' : 'sd_level_supply', 720, lvl, 'sd_level_12h', `12H ${lvl.type === 'demand' ? 'Demand' : 'Supply'}`);
+  for (const lvl of sdLevels4h) await maybeDrawLevel(lvl.type === 'demand' ? 'sd_level_demand' : 'sd_level_supply', 240, lvl, 'sd_level_4h', `4H ${lvl.type === 'demand' ? 'Demand' : 'Supply'}`);
+
+  for (const z of zones12h) await maybeDrawZone(z.type === 'demand' ? 'sd_zone_demand' : 'sd_zone_supply', 720, z, 'sd_zone_12h', `${z.type === 'demand' ? 'Demand' : 'Supply'} 12H${z.mitigated ? ' (gebrochen)' : ''}`, { transparency: z.mitigated ? 88 : 78 }, z.mitigated ? 'historical' : 'active');
+  for (const z of zones4h) await maybeDrawZone(z.type === 'demand' ? 'sd_zone_demand' : 'sd_zone_supply', 240, z, 'sd_zone_4h', `${z.type === 'demand' ? 'Demand' : 'Supply'} 4H${z.mitigated ? ' (gebrochen)' : ''}`, { transparency: z.mitigated ? 85 : 72 }, z.mitigated ? 'historical' : 'active');
+  const formatTf = (tf) => ({ 5: '5m', 15: '15m', 60: '1H', 240: '4H', 720: '12H' }[tf] || `${tf}`);
+  for (const g of fvgsTactical) await maybeDrawZone(g.type === 'bullish' ? 'fvg_bullish' : 'fvg_bearish', tacticalTf, g, g.type === 'bullish' ? 'fvg_bullish' : 'fvg_bearish', `FVG ${g.type} (${formatTf(tacticalTf)})`);
+  for (const o of obs12h.filter(o => !o.mitigated)) await maybeDrawZone(o.type === 'bullish' ? 'order_block_bullish' : 'order_block_bearish', 720, o, o.type === 'bullish' ? 'ob_bullish' : 'ob_bearish', `OB ${o.type} (12H)`);
+  for (const o of obs4h.filter(o => !o.mitigated)) await maybeDrawZone(o.type === 'bullish' ? 'order_block_bullish' : 'order_block_bearish', 240, o, o.type === 'bullish' ? 'ob_bullish' : 'ob_bearish', `OB ${o.type} (4H)`);
+  for (const o of obsTactical.filter(o => !o.mitigated)) await maybeDrawZone(o.type === 'bullish' ? 'order_block_bullish' : 'order_block_bearish', tacticalTf, o, o.type === 'bullish' ? 'ob_bullish' : 'ob_bearish', `OB ${o.type} (${formatTf(tacticalTf)})`);
+  for (const o of obs1h.filter(o => !o.mitigated)) await maybeDrawZone(o.type === 'bullish' ? 'order_block_bullish' : 'order_block_bearish', 60, o, o.type === 'bullish' ? 'ob_bullish' : 'ob_bearish', `OB ${o.type} (1H)`);
+  for (const o of obs5m.filter(o => !o.mitigated)) await maybeDrawZone(o.type === 'bullish' ? 'order_block_bullish' : 'order_block_bearish', 5, o, o.type === 'bullish' ? 'ob_bullish' : 'ob_bearish', `OB ${o.type} (5m)`);
+
+  // S/R levels disabled per user request (no longer needed with S/D zones + PDHL)
+
+  // --- PDHL (Previous Day High/Low) in all timeframes ---
+  const pdhl = lib.calculatePDHL(dailyBars);
+  if (pdhl.pdh !== null && pdhl.pdl !== null) {
+    const lastBarTime = tacticalBars[tacticalBars.length - 1].time;
+
+    // PDH line
+    const pdhCandidate = { type: 'pdh', timeframe: 0, price_low: pdhl.pdh, price_high: pdhl.pdh };
+    if (!state.findDuplicate(zonesState, pdhCandidate)) {
+      const pdhResult = await draw('horizontal_line', { time: lastBarTime, price: pdhl.pdh }, undefined,
+        { linecolor: COLORS.pdhl, linewidth: 1, linestyle: dottedCode, showLabel: true, textcolor: COLORS.pdhl, fontsize: 10 },
+        `PDH ${pdhl.pdh.toFixed(1)}`);
+      if (pdhResult.ok) {
+        const entry = { id: state.makeEntryId(pdhCandidate, nowIso), tv_entity_id: pdhResult.entity_id, type: 'pdh', timeframe: 0, price_high: pdhl.pdh, price_low: pdhl.pdh, created_at: nowIso, created_bar_time: pdhl.time, status: 'active' };
+        zonesState.push(entry); newEntries.push(entry);
+      }
+    }
+
+    // PDL line
+    const pdlCandidate = { type: 'pdl', timeframe: 0, price_low: pdhl.pdl, price_high: pdhl.pdl };
+    if (!state.findDuplicate(zonesState, pdlCandidate)) {
+      const pdlResult = await draw('horizontal_line', { time: lastBarTime, price: pdhl.pdl }, undefined,
+        { linecolor: COLORS.pdhl, linewidth: 1, linestyle: dottedCode, showLabel: true, textcolor: COLORS.pdhl, fontsize: 10 },
+        `PDL ${pdhl.pdl.toFixed(1)}`);
+      if (pdlResult.ok) {
+        const entry = { id: state.makeEntryId(pdlCandidate, nowIso), tv_entity_id: pdlResult.entity_id, type: 'pdl', timeframe: 0, price_high: pdhl.pdl, price_low: pdhl.pdl, created_at: nowIso, created_bar_time: pdhl.time, status: 'active' };
+        zonesState.push(entry); newEntries.push(entry);
+      }
+    }
+  }
+
+  state.writeState(zonesState);
+
+  // --- entries + briefing (Trend 4H / Zone 4H / FVG-direction / Premium-Discount / Bestätigung 5min) ---
+  // "Zone" is fed by the same active 4H S/D levels drawn on the chart (state
+  // entries, not the separate old range-based zones4h) — unified so the
+  // briefing reasons about exactly what the user sees.
+  const atrArr4h = lib.atr(bars4h, 14);
+  const activeLevels4h = zonesState
+    .filter(e => e.status === 'active' && e.timeframe === 240 && (e.type === 'sd_level_demand' || e.type === 'sd_level_supply'))
+    .map(e => {
+      const idx = bars4h.findIndex(b => b.time === e.created_bar_time);
+      return { type: e.type === 'sd_level_demand' ? 'demand' : 'supply', price: e.price_low, atr: idx >= 0 ? atrArr4h[idx] : null };
+    });
+  // 12H levels aren't used for entry confluence (that's 4H-only), just shown
+  // in the OBSERVE section of the briefing for context.
+  const activeLevels12h = zonesState
+    .filter(e => e.status === 'active' && e.timeframe === 720 && (e.type === 'sd_level_demand' || e.type === 'sd_level_supply'))
+    .map(e => ({ type: e.type === 'sd_level_demand' ? 'demand' : 'supply', price: e.price_low }));
+  const premiumDiscount = htfBias ? lib.computePremiumDiscount(bars4h, htfBias) : null;
+  // Sweep+MSS on the tactical timeframe, shown in OBSERVE — user-validated
+  // against a real example (15min, 07.07. 09:00 sweep -> 10:30 MSS) before
+  // wiring in. Only the most recent, still-recent-enough one is surfaced.
+  const sweepMssTactical = lib.findSweepMSS(tacticalBars).filter(r => recentEnough(r.mssTime)).pop() || null;
+  // Order Blocks against a scenario's direction are a reversal warning, not
+  // a confluence add (user-specified) — pooled from 4H + tactical.
+  const reversalObs = [...obs4h, ...obsTactical].filter(o => !o.mitigated);
+  const tacticalAtrArr = lib.atr(tacticalBars, 14);
+  const tacticalAtr = tacticalAtrArr[tacticalAtrArr.length - 1];
+  const { minutesOfDay } = lib.berlinDateTimeParts(nowSec);
+  const session = lib.classifySession(minutesOfDay);
+
+  let scenarios = buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss: sweepMssTactical, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session });
+
+  // Backtest filter (change #2): momentum_continuation only if short-term bias
+  // aligns with 4H trend AND during morning session (orb/main before 11:30).
+  // Afternoon momentum was 0R; non-aligned momentum was flat.
+  const momMorning = session.key === 'orb' || session.key === 'main';
+  const momAligned = shortTermBias && shortTermBias === htfBias;
+  scenarios = scenarios.filter(s =>
+    s.type !== 'momentum_continuation' || (momAligned && momMorning)
+  );
+
+  // --- Self-feedback loop: log scenarios, check older ones against what
+  // actually happened, surface a historical win-rate per scenario type. Adds
+  // the accountability the user asked for after a straight momentum move hit
+  // neither the trend-bounce nor the counter-trend scenario.
+  const SCENARIO_LOG_PATH = '/Users/boogy/tradingview-mcp/state/scenario_log.json';
+  const scenarioLog = existsSync(SCENARIO_LOG_PATH) ? JSON.parse(readFileSync(SCENARIO_LOG_PATH, 'utf8')) : [];
+  // Change #4: Evaluate A/B on 15m bars (finer granularity, ~7 day horizon = 640 15m bars)
+  // instead of 4h bars (which made tight SLs look like instant losses).
+  // Szenario A (trend_bounce) removed 08.07.2026 — all 9 parameter combinations
+  // tested negative in sweep. Dead code with no salvage path.
+  // D was added after backtest fix (was missing entirely, causing unresolved log entries).
+  const barsByScenarioType = { counter_trend: tacticalBars, momentum_continuation: tacticalBars, consolidation_breakout: tacticalBars };
+  const expiryBarsByScenarioType = { counter_trend: 640, momentum_continuation: 40, consolidation_breakout: 40 };
+
+  for (const logEntry of scenarioLog) {
+    if (logEntry.resolved) continue;
+    const bars = barsByScenarioType[logEntry.type];
+    if (!bars) continue;
+    const expiry = expiryBarsByScenarioType[logEntry.type];
+    const { resolved, outcome } = lib.checkScenarioOutcome(logEntry, bars, expiry);
+    if (resolved) { logEntry.resolved = true; logEntry.outcome = outcome; logEntry.resolvedAt = nowIso; }
+  }
+
+  const statsByType = {};
+  for (const logEntry of scenarioLog) {
+    if (!logEntry.resolved) continue;
+    if (!statsByType[logEntry.type]) statsByType[logEntry.type] = { wins: 0, losses: 0, other: 0 };
+    if (logEntry.outcome === 'target_hit') statsByType[logEntry.type].wins++;
+    else if (logEntry.outcome === 'sl_hit') statsByType[logEntry.type].losses++;
+    else statsByType[logEntry.type].other++;
+  }
+  for (const s of scenarios) {
+    const st = statsByType[s.type];
+    if (st) {
+      const resolvedCount = st.wins + st.losses;
+      s.historicalStats = { wins: st.wins, resolvedCount, winRate: resolvedCount ? st.wins / resolvedCount : 0 };
+    }
+  }
+
+  // Dedup: don't log a fresh duplicate of a scenario that's already pending
+  // (same type/direction/zone, logged recently) — let the existing one
+  // resolve rather than spamming near-identical entries every run.
+  const DEDUP_TOLERANCE_PCT = 0.001;
+  const DEDUP_MAX_AGE_SEC = 3 * 24 * 3600;
+  for (const s of scenarios) {
+    const alreadyLogged = scenarioLog.some(e => !e.resolved && e.type === s.type && e.direction === s.direction &&
+      Math.abs(e.zonePrice - s.zonePrice) <= Math.abs(s.zonePrice) * DEDUP_TOLERANCE_PCT &&
+      (nowSec - Math.floor(new Date(e.loggedAt).getTime() / 1000)) < DEDUP_MAX_AGE_SEC);
+    if (alreadyLogged || s.targets[0] == null) continue;
+    scenarioLog.push({
+      id: `${s.type}_${nowSec}`, loggedAt: nowIso, loggedBarTime: tacticalBars[tacticalBars.length - 1].time,
+      type: s.type, direction: s.direction, zonePrice: s.zonePrice, sl: s.sl, target: s.targets[0],
+      grade: s.probability, resolved: false, outcome: null,
+    });
+  }
+
+  mkdirSync('/Users/boogy/tradingview-mcp/state', { recursive: true });
+  writeFileSync(SCENARIO_LOG_PATH, JSON.stringify(scenarioLog, null, 2));
+
+  const dateStr = nowIso.slice(0, 10);
+  const { dateDisplay, timeDisplay } = lib.berlinDateTimeParts(nowSec);
+  const briefingText = buildBriefing({
+    regime, htfBias, lastBosTrend: lastBos4hForTrend, shortTermBias, premiumDiscount, activeLevels4h, scenarios, lastClose, dataWarnings, dateDisplay, timeDisplay, session,
+    observe12h: { lastCandles: bars12h.slice(-2), activeLevels: activeLevels12h, pdhl },
+    observe4h: { lastCandles: bars4h.slice(-2), activeLevels: activeLevels4h, fvgs: fvgsTactical, pdhl },
+    observeTactical: { lastCandles: tacticalBars.slice(-6), tf: formatTf(tacticalTf), pdhl, sweepMss: sweepMssTactical },
+  });
+
+  // Saved immediately, BEFORE the screenshot/telegram steps below — found a
+  // real gap: on 08.07. the run got this far (state files were updated) but
+  // never produced a briefing file or a Telegram message, and with no
+  // try/catch around the telegram calls at the time, a crash there would
+  // have discarded an already-finished briefing. Saving early means the text
+  // survives even if everything after this point fails.
+  mkdirSync('/Users/boogy/briefings', { recursive: true });
+  writeFileSync(`/Users/boogy/briefings/briefing_${dateStr}.md`, briefingText);
+
+  // --- Coach-style scenario path sketch (redrawn fresh every run) ---
+  // Draws each scenario's expected price path as dashed arrows (current
+  // price -> zone -> target), sets the chart's right-margin so there's room
+  // for a "future" sketch (setVisibleRange/scrollToDate both clamp to real
+  // bars and can't do this), screenshots it, and sends it as a photo
+  // alongside the text — this is the visual the user asked to get "every
+  // time" after reacting well to a one-off manual version.
+  let scenarioScreenshotPath = null;
+  try {
+    const prevPathIds = existsSync(SCENARIO_PATHS_STATE_PATH) ? JSON.parse(readFileSync(SCENARIO_PATHS_STATE_PATH, 'utf8')) : [];
+    // The path arrows' spacing is computed from tacticalBars' bar interval —
+    // if the chart is displaying a DIFFERENT resolution than tacticalTf at
+    // screenshot time (it's left on whatever `original.resolution` was, per
+    // the restore a few steps up), the same time/price deltas render at a
+    // different visual scale, distorting the sketch (found live: a clean V
+    // became a narrow "kite" when the chart was still on 1H). Force it to
+    // tacticalTf for this, then restore afterward.
+    await setTimeframe({ timeframe: String(tacticalTf) });
+    await sleep(1200);
+    await setRightOffset({ bars: 10 });
+    const { ids: newPathIds } = await drawScenarioPaths(scenarios, tacticalBars, prevPathIds);
+    writeFileSync(SCENARIO_PATHS_STATE_PATH, JSON.stringify(newPathIds));
+    mkdirSync('/Users/boogy/briefings', { recursive: true });
+    const shot = await captureScreenshot({ region: 'chart', filename: `chart_${dateStr}` });
+    if (shot.success) scenarioScreenshotPath = shot.file_path;
+    else dataWarnings.push(`Chart-Screenshot fehlgeschlagen: ${JSON.stringify(shot)}`);
+    await setTimeframe({ timeframe: original.resolution });
+  } catch (e) {
+    dataWarnings.push(`Szenario-Pfade/Screenshot fehlgeschlagen: ${e.message}`);
+  }
+
+  // telegram.mjs's own functions already catch their internal errors and
+  // return {sent: false, ...} rather than throwing, but wrapping the calls
+  // themselves too — belt and suspenders after an unexplained silent failure
+  // where the briefing file never got written and no Telegram message arrived.
+  let telegramResult, telegramPhotoResult;
+  try {
+    telegramResult = await sendTelegramBriefing(briefingText);
+  } catch (e) {
+    telegramResult = { sent: false, error: e.message };
+    dataWarnings.push(`Telegram-Textversand fehlgeschlagen: ${e.message}`);
+  }
+  try {
+    telegramPhotoResult = scenarioScreenshotPath
+      ? await sendTelegramPhoto(scenarioScreenshotPath, 'Deine Szenarien im Chart 📈')
+      : { sent: false, reason: 'Kein Screenshot verfügbar' };
+  } catch (e) {
+    telegramPhotoResult = { sent: false, error: e.message };
+    dataWarnings.push(`Telegram-Fotoversand fehlgeschlagen: ${e.message}`);
+  }
+
+  console.log(JSON.stringify({
+    success: true, dataWarnings, tacticalTf, regime,
+    regimeSource: storedRegime && !forceRegimeReset && storedRegime.date === regimeDateKey ? 'cached_today' : 'freshly_computed',
+    zones12h, zones4h, srLevels, fvgsTactical, obs12h, obs4h, obs1h, obs5m, obsTactical,
+    pdhl, breachedLog, removedLog, newEntriesCount: newEntries.length,
+    telegramResult, telegramPhotoResult, scenarioScreenshotPath, briefingSavedTo: `/Users/boogy/briefings/briefing_${dateStr}.md`,
+  }, null, 2));
+
+  console.log('\n\n===== BRIEFING TEXT =====\n');
+  console.log(briefingText);
+
+  await disconnect();
+  process.exit(0);
+}
+
+// Found live on 08.07.: a run didn't crash, it just HUNG indefinitely (still
+// running 20+ minutes later, no error, no output) — almost certainly a CDP
+// call to TradingView that never resolved. A hung process produces neither a
+// success nor a caught error, so nothing downstream (briefing file, Telegram,
+// even this catch handler) ever fires. Race main() against a hard timeout so
+// a hang becomes a loud, logged failure instead of a silent no-op.
+const GLOBAL_TIMEOUT_MS = 4 * 60 * 1000; // normal runs observed at 30-90s
+function timeoutAfter(ms) {
+  return new Promise((_, reject) => setTimeout(() => reject(new Error(`Globaler Timeout nach ${ms / 1000}s — Skript hing vermutlich fest (z.B. TradingView/CDP reagiert nicht).`)), ms));
+}
+
+Promise.race([main(), timeoutAfter(GLOBAL_TIMEOUT_MS)]).catch(async (e) => {
+  console.error('FATAL', e.stack || e.message);
+  // A run failed silently on 08.07. with no stored trace anywhere (the
+  // scheduled-task runner doesn't persist console output) — write a crash
+  // log so a future silent failure is actually diagnosable afterward.
+  try {
+    writeFileSync('/Users/boogy/tradingview-mcp/state/last_error.log', `${new Date().toISOString()}\n${e.stack || e.message}\n`);
+  } catch { /* if even this fails, nothing more we can do */ }
+  await disconnect().catch(() => {});
+  process.exit(1);
+});
