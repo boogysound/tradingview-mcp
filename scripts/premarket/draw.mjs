@@ -142,8 +142,9 @@ export async function drawMarketShiftMarker(ms, timeframeLabel, prevIds = {}) {
       hlabelText = 'Bestätigter MS';
       linePrice = ms.brokenLevel.price;
       lineStartTime = ms.brokenLevel.time;
-    } else if (ms.status === 'potential' && ms.level) {
-      // Potential: show confirmation expectation (HL/LH level where breakout is expected)
+    } else if (ms.status === 'potential' && ms.level && !isConfirmed) {
+      // Potential only: show confirmation expectation (HL/LH level where breakout is expected)
+      // Don't show this for confirmed MS!
       const confirmType = ms.direction === 'bullish' ? 'HL' : 'LH';
       hlabelText = `Durchbruch über ${confirmType} ${ms.level.toFixed(1)} erwartet`;
       linePrice = ms.level;
