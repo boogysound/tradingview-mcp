@@ -40,10 +40,25 @@ async function fetchBars(tf, count = 500) {
   return raw.bars || raw;
 }
 
+function toBerlinTime(timestamp) {
+  // Convert Unix timestamp to Berlin time (CEST/CET)
+  const date = new Date(timestamp * 1000);
+  const formatter = new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  return formatter.format(date);
+}
+
 function fmtLevel(ms) {
   const arrow = ms.direction === 'bearish' ? '↓ bearish' : '↑ bullish';
-  const brokenAt = new Date(ms.brokenLevel.time * 1000).toISOString().replace('T', ' ').slice(0, 16);
-  return `${arrow}\nLevel: ${ms.brokenLevel.price.toFixed(1)} (gebrochen am ${brokenAt} UTC)`;
+  const brokenAt = toBerlinTime(ms.brokenLevel.time);
+  return `${arrow}\nLevel: ${ms.brokenLevel.price.toFixed(1)} (gebrochen am ${brokenAt} Berlin)`;
 }
 
 function fmtPotential(ms) {
@@ -336,29 +351,44 @@ async function main() {
   const ltfIds = await drawMarketShiftMarker(ltfMs, '5m', prevIds.ltf);
   writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({ htf: htfIds, ltf: ltfIds }));
 
+  // Verify MS lines were drawn before sending alerts
+  const msDrawingStatus = [];
+  if (htfMs.status !== 'none') {
+    const htfDrawn = htfIds.vline && htfIds.hline;
+    msDrawingStatus.push(`1H: ${htfDrawn ? '✅ Linien gezeichnet' : '❌ Fehler beim Zeichnen'}`);
+  }
+  if (ltfMs.status !== 'none') {
+    const ltfDrawn = ltfIds.vline && ltfIds.hline;
+    msDrawingStatus.push(`5m: ${ltfDrawn ? '✅ Linien gezeichnet' : '❌ Fehler beim Zeichnen'}`);
+  }
+  if (msDrawingStatus.length > 0) {
+    console.log(`📊 MS Drawing Status: ${msDrawingStatus.join(' | ')}`);
+  }
+
   const alertState = existsSync(ALERT_STATE_PATH)
     ? JSON.parse(readFileSync(ALERT_STATE_PATH, 'utf8'))
     : { htf: { confirmed: null, potential: null }, ltf: { confirmed: null, potential: null } };
 
   const messages = [];
+  const nowBerlin = toBerlinTime(Math.floor(Date.now() / 1000));
 
   // Potential MS alerts (new)
   if (htfMs.status === 'potential' && htfMs.break_time !== alertState.htf.potential) {
-    messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMs)}`);
+    messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMs)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
     alertState.htf.potential = htfMs.break_time;
   }
   if (ltfMs.status === 'potential' && ltfMs.break_time !== alertState.ltf.potential) {
-    messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMs)}`);
+    messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMs)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
     alertState.ltf.potential = ltfMs.break_time;
   }
 
   // Confirmed MS alerts (existing)
   if (htfMs.status === 'confirmed' && htfMs.break_time !== alertState.htf.confirmed) {
-    messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMs)}`);
+    messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMs)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
     alertState.htf.confirmed = htfMs.break_time;
   }
   if (ltfMs.status === 'confirmed' && ltfMs.break_time !== alertState.ltf.confirmed) {
-    messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMs)}`);
+    messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMs)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
     alertState.ltf.confirmed = ltfMs.break_time;
   }
 
