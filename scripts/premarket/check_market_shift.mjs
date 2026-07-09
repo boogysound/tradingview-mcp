@@ -26,6 +26,7 @@ import * as state from './state.mjs';
 import { remove } from './draw.mjs';
 import { drawMarketShiftMarker } from './draw.mjs';
 import { sendTelegramBriefing } from './telegram.mjs';
+import { ensureFreshData } from './ensure_fresh_data.mjs';
 
 const MARKET_SHIFT_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift.json';
 const MARKET_SHIFT_HISTORY_PATH = '/Users/boogy/tradingview-mcp/state/market_shift_history.json';
@@ -373,6 +374,10 @@ async function main() {
   }
 
   const original = await getState();
+
+  // --- FRESH DATA GUARANTEE: Update cache if stale ---
+  const dataRefreshStatus = await ensureFreshData();
+  console.log(`📦 Data Refresh: ${dataRefreshStatus.updated.length} updated, ${dataRefreshStatus.skipped.length} fresh`);
 
   const bars1h = await fetchBars(60, 500);
   const bars15 = await fetchBars(15, 500);
