@@ -57,18 +57,22 @@ function toBerlinTime(timestamp) {
   return formatter.format(date);
 }
 
-function fmtLevel(ms) {
-  const arrow = ms.direction === 'bearish' ? '↓ bearish' : '↑ bullish';
+function fmtLevel(ms, prevDirection) {
+  const from = prevDirection ? (prevDirection === 'bullish' ? 'Bullisch' : 'Bärisch') : '—';
+  const to = ms.direction === 'bearish' ? 'Bärisch' : 'Bullisch';
+  const transition = `${from} → ${to}`;
   const brokenAt = toBerlinTime(ms.brokenLevel.time);
-  return `${arrow}\nLevel: ${ms.brokenLevel.price.toFixed(1)} (gebrochen am ${brokenAt} Berlin)`;
+  return `${transition}\nLevel: ${ms.brokenLevel.price.toFixed(1)} (gebrochen am ${brokenAt} Berlin)`;
 }
 
-function fmtPotential(ms) {
-  const arrow = ms.direction === 'bearish' ? '↓ bearish' : '↑ bullish';
+function fmtPotential(ms, prevDirection) {
+  const from = prevDirection ? (prevDirection === 'bullish' ? 'Bullisch' : 'Bärisch') : '—';
+  const to = ms.direction === 'bearish' ? 'Bärisch' : 'Bullisch';
+  const transition = `${from} → ${to}`;
   const confirmType = ms.direction === 'bullish' ? 'Higher Low' : 'Lower High';
   const confirmLevel = ms.level.toFixed(1);
   const direction = ms.direction === 'bullish' ? 'über' : 'unter';
-  return `${arrow}\nGebrochene Ebene: ${ms.brokenLevel.price.toFixed(1)}\n\n⏳ Bestätigung erwartet:\n${confirmType} ${direction} ${confirmLevel}`;
+  return `${transition}\nGebrochene Ebene: ${ms.brokenLevel.price.toFixed(1)}\n\n⏳ Bestätigung erwartet:\n${confirmType} ${direction} ${confirmLevel}`;
 }
 
 async function syncDrawingsWithState() {
@@ -426,9 +430,12 @@ async function main() {
   if (removedFvgs.length) state.writeState(zonesState);
 
   // --- Auto-cleanup: Archive old MS when new ones are detected ---
+  // Capture previous directions BEFORE cleanup, for telegram message formatting
   const prevIds = existsSync(MARKET_SHIFT_STATE_PATH)
     ? JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'))
     : { htf: {}, ltf: {} };
+  const prevHtfDirection = prevIds.htf?.lastMs?.direction;
+  const prevLtfDirection = prevIds.ltf?.lastMs?.direction;
   const msCleanupResult = await archiveAndCleanupOldMs(htfMsConfluent, ltfMsConfluent);
 
   // ENSURE all old shapes are deleted before drawing new ones
@@ -501,24 +508,24 @@ async function main() {
 
   // Potential MS alerts (new) — using confluent MS
   if (htfMsConfluent.status === 'potential' && htfMsConfluent.break_time !== alertState.htf.potential) {
-    messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMsConfluent)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
+    messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMsConfluent, prevHtfDirection)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
     alertState.htf.potential = htfMsConfluent.break_time;
     alertStateChanged = true;
   }
   if (ltfMsConfluent.status === 'potential' && ltfMsConfluent.break_time !== alertState.ltf.potential) {
-    messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMsConfluent)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
+    messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMsConfluent, prevLtfDirection)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
     alertState.ltf.potential = ltfMsConfluent.break_time;
     alertStateChanged = true;
   }
 
   // Confirmed MS alerts (existing) — using confluent MS
   if (htfMsConfluent.status === 'confirmed' && htfMsConfluent.break_time !== alertState.htf.confirmed) {
-    messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMsConfluent)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
+    messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMsConfluent, prevHtfDirection)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
     alertState.htf.confirmed = htfMsConfluent.break_time;
     alertStateChanged = true;
   }
   if (ltfMsConfluent.status === 'confirmed' && ltfMsConfluent.break_time !== alertState.ltf.confirmed) {
-    messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMsConfluent)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
+    messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMsConfluent, prevLtfDirection)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
     alertState.ltf.confirmed = ltfMsConfluent.break_time;
     alertStateChanged = true;
   }

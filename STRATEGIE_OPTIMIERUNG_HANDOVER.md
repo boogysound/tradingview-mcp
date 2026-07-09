@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 2026-07-09 (13:31 UTC — Intraday Market Shift Check)
+**Stand:** 2026-07-09 (18:42 UTC — Intraday Market Shift Check)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)  
 **Testdaten:** 6 Monate (05.01.–08.07.2026), 130 Handelstage, 632 Szenarien (stündliche Cadence) + 1.115 Szenarien (15min-Kontroll-Lauf)
 
@@ -18,9 +18,23 @@
 
 ## 📡 Live-Status (2026-07-09)
 
-- **1H MS:** ✅ Bestätigt (↓ um 25784.9)
 - **5m MS:** ✅ Bestätigt (↑ um 24972.1)
 **Heute:** 0W / 0L (0% WR)
+
+### 🚀 Cloud Automation (Active)
+**Scheduled Tasks (Cloud-basiert, läuft 24/7):**
+- **de40-morning-briefing** → 09:15 Uhr Berlin, Mo-Fr
+  - Sendet tägliches Telegram-Briefing
+  - Szenarien, MS-Status, Tagesresumé
+- **de40-intraday-ms-check** → Alle 5 Minuten, Mo-Fr 08:00-22:00 Berlin
+  - Erkennt neue Market Shifts
+  - Sendet Telegram bei **NEUEM** confirmed/potential MS
+  - Auto-cleanup stale alerts + invalidierte FVGs
+
+**Telegram Alerts Format:**
+- Bestätigt MS: `✅ BESTÄTIGTER MS (5m)\nBullisch → Bärisch\nLevel: 24972.1 (gebrochen am ...)\n🕐 Bestätigt: ... Berlin`
+- Potenziell MS: `⚠️ POTENZIELLER MS (1H)\nBullisch → Bärisch\nGebrochene Ebene: ...\n⏳ Bestätigung erwartet: HL über ...`
+
 ### 🔧 FVG Cleanup Completed (13:11 UTC)
 **Problem:** Zwei FVGs bei 25054 (rot) und 24939 (grün) blieben sichtbar nach Invalidierung.
 - **Root Cause:** entity_ids (9cjkES, e4Kn1B) waren invalid/nicht auf TV vorhanden
