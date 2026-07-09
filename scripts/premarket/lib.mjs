@@ -223,6 +223,52 @@ export function detectMarketShift(bars, n = 2) {
   return { status: 'none', direction: settledDirection, now };
 }
 
+// ---------- Market Shift Confluence Validation ----------
+// Rule: HTF MS can only exist if it matches LTF direction
+// "Was sich auf dem kleinen TF abzeichnet, muss später auch auf dem großen TF bestätigt werden"
+// No HTF MS without prior LTF confirmation
+//
+// Returns { ltfMs, htfMs, isConfluent, reason }
+export function validateMsConfluence(ltfMs, htfMs) {
+  // If LTF has no MS, don't draw any HTF MS either
+  if (ltfMs.status === 'none') {
+    return {
+      ltfMs,
+      htfMs: { status: 'none', direction: null },
+      isConfluent: true,
+      reason: 'No LTF MS → HTF suppressed'
+    };
+  }
+
+  // If LTF MS exists, HTF must have same direction (or none)
+  if (htfMs.status === 'none') {
+    return {
+      ltfMs,
+      htfMs,
+      isConfluent: true,
+      reason: `LTF ${ltfMs.direction} exists, no HTF MS`
+    };
+  }
+
+  // Both exist: directions must match
+  if (ltfMs.direction === htfMs.direction) {
+    return {
+      ltfMs,
+      htfMs,
+      isConfluent: true,
+      reason: `Confluence ✅: LTF ${ltfMs.direction} = HTF ${htfMs.direction}`
+    };
+  }
+
+  // Mismatch: suppress HTF, keep LTF
+  return {
+    ltfMs,
+    htfMs: { status: 'none', direction: null },
+    isConfluent: false,
+    reason: `Mismatch ❌: LTF ${ltfMs.direction} ≠ HTF ${htfMs.direction} → HTF suppressed`
+  };
+}
+
 // Backtest-oriented sibling of detectMarketShift: instead of only the
 // CURRENT state, walks the entire alternating swing sequence once and
 // returns every confirmed-MS event that occurred historically (09.07.2026,

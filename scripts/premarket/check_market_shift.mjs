@@ -319,6 +319,12 @@ async function main() {
   const htfMs = lib.detectMarketShift(bars1h, 2);
   const ltfMs = bars5.length >= 20 ? lib.detectMarketShift(bars5, 2) : { status: 'none' };
 
+  // --- Confluence Validation: HTF MS only if matches LTF direction ---
+  const confluenceResult = lib.validateMsConfluence(ltfMs, htfMs);
+  const htfMsConfluent = confluenceResult.htfMs;
+  const ltfMsConfluent = confluenceResult.ltfMs;
+  console.log(`\n📊 Confluence Check: ${confluenceResult.reason}`);
+
   // --- FVG cleanup (>=50% mitigated) ---
   const barsByTf = { 60: bars1h, 15: bars15, 5: bars5 };
   const zonesState = state.readState();
@@ -344,11 +350,12 @@ async function main() {
 
   // Keep the chart markers current intraday, not just once at 09:15 — same
   // draw call, same state file, as the daily run.mjs.
+  // Use confluent MS (with validation applied)
   const prevIds = existsSync(MARKET_SHIFT_STATE_PATH)
     ? JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'))
     : { htf: {}, ltf: {} };
-  const htfIds = await drawMarketShiftMarker(htfMs, '1H', prevIds.htf);
-  const ltfIds = await drawMarketShiftMarker(ltfMs, '5m', prevIds.ltf);
+  const htfIds = await drawMarketShiftMarker(htfMsConfluent, '1H', prevIds.htf);
+  const ltfIds = await drawMarketShiftMarker(ltfMsConfluent, '5m', prevIds.ltf);
   writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({ htf: htfIds, ltf: ltfIds }));
 
   // Verify MS lines were drawn before sending alerts
@@ -372,24 +379,24 @@ async function main() {
   const messages = [];
   const nowBerlin = toBerlinTime(Math.floor(Date.now() / 1000));
 
-  // Potential MS alerts (new)
-  if (htfMs.status === 'potential' && htfMs.break_time !== alertState.htf.potential) {
-    messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMs)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
-    alertState.htf.potential = htfMs.break_time;
+  // Potential MS alerts (new) — using confluent MS
+  if (htfMsConfluent.status === 'potential' && htfMsConfluent.break_time !== alertState.htf.potential) {
+    messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMsConfluent)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
+    alertState.htf.potential = htfMsConfluent.break_time;
   }
-  if (ltfMs.status === 'potential' && ltfMs.break_time !== alertState.ltf.potential) {
-    messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMs)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
-    alertState.ltf.potential = ltfMs.break_time;
+  if (ltfMsConfluent.status === 'potential' && ltfMsConfluent.break_time !== alertState.ltf.potential) {
+    messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMsConfluent)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
+    alertState.ltf.potential = ltfMsConfluent.break_time;
   }
 
-  // Confirmed MS alerts (existing)
-  if (htfMs.status === 'confirmed' && htfMs.break_time !== alertState.htf.confirmed) {
-    messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMs)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
-    alertState.htf.confirmed = htfMs.break_time;
+  // Confirmed MS alerts (existing) — using confluent MS
+  if (htfMsConfluent.status === 'confirmed' && htfMsConfluent.break_time !== alertState.htf.confirmed) {
+    messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMsConfluent)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
+    alertState.htf.confirmed = htfMsConfluent.break_time;
   }
-  if (ltfMs.status === 'confirmed' && ltfMs.break_time !== alertState.ltf.confirmed) {
-    messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMs)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
-    alertState.ltf.confirmed = ltfMs.break_time;
+  if (ltfMsConfluent.status === 'confirmed' && ltfMsConfluent.break_time !== alertState.ltf.confirmed) {
+    messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMsConfluent)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
+    alertState.ltf.confirmed = ltfMsConfluent.break_time;
   }
 
   let telegram = null;
@@ -398,13 +405,14 @@ async function main() {
     telegram = await sendTelegramBriefing(messages.join('\n\n'));
   }
 
-  // Update handover document
-  await updateHandover(htfMs, ltfMs, removedFvgs);
+  // Update handover document using confluent MS
+  await updateHandover(htfMsConfluent, ltfMsConfluent, removedFvgs);
 
   console.log(JSON.stringify({
     success: true,
     alerted: messages.length > 0,
-    htf: htfMs.status, ltf: ltfMs.status,
+    confluence: confluenceResult.reason,
+    htf: htfMsConfluent.status, ltf: ltfMsConfluent.status,
     telegram,
     removedFvgs,
     failedRemoves: failedRemoves.length > 0 ? failedRemoves : undefined,
