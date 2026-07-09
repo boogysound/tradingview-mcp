@@ -429,13 +429,20 @@ async function main() {
   const prevIds = existsSync(MARKET_SHIFT_STATE_PATH)
     ? JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'))
     : { htf: {}, ltf: {} };
-  const cleanupResult = await archiveAndCleanupOldMs(htfMsConfluent, ltfMsConfluent);
+  const msCleanupResult = await archiveAndCleanupOldMs(htfMsConfluent, ltfMsConfluent);
+
+  // ENSURE all old shapes are deleted before drawing new ones
+  // This is critical because if an old shape has wrong label, it won't be cleaned otherwise
+  const allKnownOldIds = {
+    htf: { vline: null, hline: null, ...prevIds.htf },
+    ltf: { vline: null, hline: null, ...prevIds.ltf }
+  };
 
   // Keep the chart markers current intraday, not just once at 09:15 — same
   // draw call, same state file, as the daily run.mjs.
-  // Use confluent MS (with validation applied)
-  const htfIds = await drawMarketShiftMarker(htfMsConfluent, '1H', prevIds.htf);
-  const ltfIds = await drawMarketShiftMarker(ltfMsConfluent, '5m', prevIds.ltf);
+  // Use confluent MS (with validation applied) and FORCE cleanup with known IDs
+  const htfIds = await drawMarketShiftMarker(htfMsConfluent, '1H', allKnownOldIds.htf);
+  const ltfIds = await drawMarketShiftMarker(ltfMsConfluent, '5m', allKnownOldIds.ltf);
 
   // Save with last-seen MS for next cleanup comparison
   writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({
@@ -463,31 +470,66 @@ async function main() {
 
   const messages = [];
   const nowBerlin = toBerlinTime(Math.floor(Date.now() / 1000));
+  let alertStateChanged = false;
+
+  // --- CLEANUP: Clear old alerts when MS ends (status becomes 'none') ---
+  if (htfMsConfluent.status === 'none') {
+    if (alertState.htf.confirmed !== null) {
+      console.log('🗑️ HTF confirmed MS cleanup: was', alertState.htf.confirmed, '→ clearing');
+      alertState.htf.confirmed = null;
+      alertStateChanged = true;
+    }
+    if (alertState.htf.potential !== null) {
+      console.log('🗑️ HTF potential MS cleanup: was', alertState.htf.potential, '→ clearing');
+      alertState.htf.potential = null;
+      alertStateChanged = true;
+    }
+  }
+
+  if (ltfMsConfluent.status === 'none') {
+    if (alertState.ltf.confirmed !== null) {
+      console.log('🗑️ LTF confirmed MS cleanup: was', alertState.ltf.confirmed, '→ clearing');
+      alertState.ltf.confirmed = null;
+      alertStateChanged = true;
+    }
+    if (alertState.ltf.potential !== null) {
+      console.log('🗑️ LTF potential MS cleanup: was', alertState.ltf.potential, '→ clearing');
+      alertState.ltf.potential = null;
+      alertStateChanged = true;
+    }
+  }
 
   // Potential MS alerts (new) — using confluent MS
   if (htfMsConfluent.status === 'potential' && htfMsConfluent.break_time !== alertState.htf.potential) {
     messages.push(`⚠️ POTENZIELLER MS (1H)\n${fmtPotential(htfMsConfluent)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
     alertState.htf.potential = htfMsConfluent.break_time;
+    alertStateChanged = true;
   }
   if (ltfMsConfluent.status === 'potential' && ltfMsConfluent.break_time !== alertState.ltf.potential) {
     messages.push(`⚠️ POTENZIELLER MS (5m)\n${fmtPotential(ltfMsConfluent)}\n\n🕐 Erkannt: ${nowBerlin} Berlin`);
     alertState.ltf.potential = ltfMsConfluent.break_time;
+    alertStateChanged = true;
   }
 
   // Confirmed MS alerts (existing) — using confluent MS
   if (htfMsConfluent.status === 'confirmed' && htfMsConfluent.break_time !== alertState.htf.confirmed) {
     messages.push(`✅ BESTÄTIGTER MS (1H)\n${fmtLevel(htfMsConfluent)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
     alertState.htf.confirmed = htfMsConfluent.break_time;
+    alertStateChanged = true;
   }
   if (ltfMsConfluent.status === 'confirmed' && ltfMsConfluent.break_time !== alertState.ltf.confirmed) {
     messages.push(`✅ BESTÄTIGTER MS (5m)\n${fmtLevel(ltfMsConfluent)}\n\n🕐 Bestätigt: ${nowBerlin} Berlin`);
     alertState.ltf.confirmed = ltfMsConfluent.break_time;
+    alertStateChanged = true;
   }
 
   let telegram = null;
   if (messages.length) {
     writeFileSync(ALERT_STATE_PATH, JSON.stringify(alertState));
     telegram = await sendTelegramBriefing(messages.join('\n\n'));
+  } else if (alertStateChanged) {
+    writeFileSync(ALERT_STATE_PATH, JSON.stringify(alertState));
+    console.log('✅ Alert state cleaned up (no new alerts)');
   }
 
   // Update handover document using confluent MS
@@ -498,7 +540,7 @@ async function main() {
     alerted: messages.length > 0,
     confluence: confluenceResult.reason,
     htf: htfMsConfluent.status, ltf: ltfMsConfluent.status,
-    cleanup: cleanupResult.archived.length > 0 ? `Archived: ${cleanupResult.archived.join(', ')}` : 'No old MS',
+    cleanup: msCleanupResult.archived.length > 0 ? `Archived: ${msCleanupResult.archived.join(', ')}` : 'No old MS',
     telegram,
     removedFvgs,
     failedRemoves: failedRemoves.length > 0 ? failedRemoves : undefined,
