@@ -132,10 +132,20 @@ export async function drawMarketShiftMarker(ms, timeframeLabel, prevIds = {}) {
 
   let hline = null;
   if (ms.brokenLevel && ms.now) {
+    // For potential MS: show confirmation level (where HL/LH is expected)
+    // For confirmed MS: show broken level
+    let hlabelText = '';
+    if (isConfirmed) {
+      hlabelText = 'Bestätigter MS';
+    } else if (ms.status === 'potential' && ms.level) {
+      const confirmType = ms.direction === 'bullish' ? 'HL' : 'LH';
+      hlabelText = `Bestätigung erwartet ${confirmType} bei ${ms.level.toFixed(1)}`;
+    }
+
     const r = await draw('trend_line',
       { time: ms.brokenLevel.time, price: ms.brokenLevel.price },
       { time: ms.now, price: ms.brokenLevel.price },
-      lineStyle, isConfirmed ? 'Bestätigter MS' : '');
+      lineStyle, hlabelText);
     hline = r.ok ? r.entity_id : null;
   }
 
