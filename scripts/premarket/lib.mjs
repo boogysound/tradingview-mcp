@@ -173,8 +173,8 @@ export function detectMarketShift(bars, n = 2) {
   }
 
   if (lastConfirmedEvent) {
-    const level = lastConfirmedEvent.direction === 'bearish' ? referenceHighPoint.price : referenceLowPoint.price;
-    return { status: 'confirmed', direction: lastConfirmedEvent.direction, break_time: lastConfirmedEvent.confirmPoint.time, level, brokenLevel: lastConfirmedEvent.brokenLevel, candlePrice: lastConfirmedEvent.confirmPoint.price, now };
+    // CONFIRMED MS: only brokenLevel, NO 'level' field (that's for potential MS only)
+    return { status: 'confirmed', direction: lastConfirmedEvent.direction, break_time: lastConfirmedEvent.confirmPoint.time, brokenLevel: lastConfirmedEvent.brokenLevel, candlePrice: lastConfirmedEvent.confirmPoint.price, now };
   }
 
   // Check for unconfirmed trend break: analyze the last 4 swings
