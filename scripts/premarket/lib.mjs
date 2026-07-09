@@ -269,6 +269,43 @@ export function validateMsConfluence(ltfMs, htfMs) {
   };
 }
 
+// ---------- Market Shift Age Detection ----------
+// Check if an MS is "old" (different from current) by comparing key attributes
+// Used for cleanup: delete old MS when new ones are detected
+//
+// Returns true if this MS is different/old compared to the current one
+export function isMsOld(previousMs, currentMs) {
+  // If both are 'none', not old
+  if (previousMs?.status === 'none' && currentMs?.status === 'none') {
+    return false;
+  }
+
+  // If one is 'none' and other isn't, it's old
+  if ((previousMs?.status === 'none') !== (currentMs?.status === 'none')) {
+    return true;
+  }
+
+  // If directions differ, it's old (reversal happened)
+  if (previousMs?.direction !== currentMs?.direction) {
+    return true;
+  }
+
+  // If status differs (e.g. potential → confirmed), it's potentially new
+  if (previousMs?.status !== currentMs?.status) {
+    return false; // Evolution of same MS, not old
+  }
+
+  // If break_time differs significantly (>1 hour), it's a new MS
+  if (previousMs?.break_time && currentMs?.break_time) {
+    const timeDiff = Math.abs((currentMs.break_time - previousMs.break_time) * 1000); // seconds to ms
+    if (timeDiff > 3600000) { // 1 hour
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Backtest-oriented sibling of detectMarketShift: instead of only the
 // CURRENT state, walks the entire alternating swing sequence once and
 // returns every confirmed-MS event that occurred historically (09.07.2026,

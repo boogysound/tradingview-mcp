@@ -28,6 +28,7 @@ import { drawMarketShiftMarker } from './draw.mjs';
 import { sendTelegramBriefing } from './telegram.mjs';
 
 const MARKET_SHIFT_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift.json';
+const MARKET_SHIFT_HISTORY_PATH = '/Users/boogy/tradingview-mcp/state/market_shift_history.json';
 const ALERT_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift_alerts.json';
 const HANDOVER_PATH = '/Users/boogy/tradingview-mcp/STRATEGIE_OPTIMIERUNG_HANDOVER.md';
 const SCENARIO_LOG_PATH = '/Users/boogy/tradingview-mcp/state/scenario_log.json';
@@ -223,6 +224,77 @@ async function cleanupStaleRemoved() {
   }
 }
 
+async function archiveAndCleanupOldMs(htfMsNew, ltfMsNew) {
+  // Load previous MS history
+  let history = [];
+  if (existsSync(MARKET_SHIFT_HISTORY_PATH)) {
+    try {
+      history = JSON.parse(readFileSync(MARKET_SHIFT_HISTORY_PATH, 'utf8'));
+      if (!Array.isArray(history)) history = [];
+    } catch (e) {
+      history = [];
+    }
+  }
+
+  // Load previous shape IDs to know what to cleanup
+  let prevIds = { htf: {}, ltf: {} };
+  if (existsSync(MARKET_SHIFT_STATE_PATH)) {
+    try {
+      prevIds = JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'));
+    } catch (e) {}
+  }
+
+  const nowIso = new Date().toISOString();
+  const oldMsLog = [];
+
+  // Check if HTF MS is old
+  if (prevIds.htf.lastMs && lib.isMsOld(prevIds.htf.lastMs, htfMsNew)) {
+    console.log(`🗑️ Old HTF MS archived: ${prevIds.htf.lastMs.direction} → new: ${htfMsNew.direction || 'none'}`);
+    history.push({
+      timeframe: '1H',
+      status: prevIds.htf.lastMs.status,
+      direction: prevIds.htf.lastMs.direction,
+      start_time: prevIds.htf.lastMs.break_time,
+      end_time: Math.floor(Date.now() / 1000),
+      iso_end: nowIso,
+      reason: 'new_ms_detected'
+    });
+    oldMsLog.push('HTF');
+  }
+
+  // Check if LTF MS is old
+  if (prevIds.ltf.lastMs && lib.isMsOld(prevIds.ltf.lastMs, ltfMsNew)) {
+    console.log(`🗑️ Old LTF MS archived: ${prevIds.ltf.lastMs.direction} → new: ${ltfMsNew.direction || 'none'}`);
+    history.push({
+      timeframe: '5m',
+      status: prevIds.ltf.lastMs.status,
+      direction: prevIds.ltf.lastMs.direction,
+      start_time: prevIds.ltf.lastMs.break_time,
+      end_time: Math.floor(Date.now() / 1000),
+      iso_end: nowIso,
+      reason: 'new_ms_detected'
+    });
+    oldMsLog.push('LTF');
+  }
+
+  // Save updated history (keep last 30 entries)
+  if (history.length > 0) {
+    const recent = history.slice(-30);
+    writeFileSync(MARKET_SHIFT_HISTORY_PATH, JSON.stringify(recent, null, 2));
+    if (oldMsLog.length > 0) {
+      console.log(`📋 MS History updated: ${oldMsLog.join(', ')} archived`);
+    }
+  }
+
+  // Update the last-seen MS in prevIds for next comparison
+  const updated = {
+    htf: { ...prevIds.htf, lastMs: htfMsNew },
+    ltf: { ...prevIds.ltf, lastMs: ltfMsNew }
+  };
+
+  return { updated, archived: oldMsLog };
+}
+
 async function updateHandover(htfMs, ltfMs, removedFvgs) {
   try {
     const now = new Date();
@@ -348,15 +420,23 @@ async function main() {
   }
   if (removedFvgs.length) state.writeState(zonesState);
 
-  // Keep the chart markers current intraday, not just once at 09:15 — same
-  // draw call, same state file, as the daily run.mjs.
-  // Use confluent MS (with validation applied)
+  // --- Auto-cleanup: Archive old MS when new ones are detected ---
   const prevIds = existsSync(MARKET_SHIFT_STATE_PATH)
     ? JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'))
     : { htf: {}, ltf: {} };
+  const cleanupResult = await archiveAndCleanupOldMs(htfMsConfluent, ltfMsConfluent);
+
+  // Keep the chart markers current intraday, not just once at 09:15 — same
+  // draw call, same state file, as the daily run.mjs.
+  // Use confluent MS (with validation applied)
   const htfIds = await drawMarketShiftMarker(htfMsConfluent, '1H', prevIds.htf);
   const ltfIds = await drawMarketShiftMarker(ltfMsConfluent, '5m', prevIds.ltf);
-  writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({ htf: htfIds, ltf: ltfIds }));
+
+  // Save with last-seen MS for next cleanup comparison
+  writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({
+    htf: { ...htfIds, lastMs: htfMsConfluent },
+    ltf: { ...ltfIds, lastMs: ltfMsConfluent }
+  }));
 
   // Verify MS lines were drawn before sending alerts
   const msDrawingStatus = [];
@@ -413,6 +493,7 @@ async function main() {
     alerted: messages.length > 0,
     confluence: confluenceResult.reason,
     htf: htfMsConfluent.status, ltf: ltfMsConfluent.status,
+    cleanup: cleanupResult.archived.length > 0 ? `Archived: ${cleanupResult.archived.join(', ')}` : 'No old MS',
     telegram,
     removedFvgs,
     failedRemoves: failedRemoves.length > 0 ? failedRemoves : undefined,
