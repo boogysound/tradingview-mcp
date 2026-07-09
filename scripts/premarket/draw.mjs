@@ -130,22 +130,33 @@ export async function drawMarketShiftMarker(ms, timeframeLabel, prevIds = {}) {
   const arrow = ms.direction === 'bearish' ? '↓' : '↑';
   const lineStyle = { linecolor: '#FFFFFF', textcolor: '#FFFFFF', linewidth: 1, linestyle: isConfirmed ? 0 : 2 };
 
-  // Draw horizontal line (shows broken level / confirmation expectation)
+  // Draw horizontal line (confirmation level for potential, broken level for confirmed)
   let hline = null;
-  if (ms.brokenLevel && ms.now) {
+  if (ms.now) {
     let hlabelText = '';
-    if (isConfirmed) {
+    let linePrice = null;
+    let lineStartTime = null;
+
+    if (isConfirmed && ms.brokenLevel) {
+      // Confirmed: show broken level (the old high/low that was broken)
       hlabelText = 'Bestätigter MS';
+      linePrice = ms.brokenLevel.price;
+      lineStartTime = ms.brokenLevel.time;
     } else if (ms.status === 'potential' && ms.level) {
+      // Potential: show confirmation expectation (HL/LH level where breakout is expected)
       const confirmType = ms.direction === 'bullish' ? 'HL' : 'LH';
-      hlabelText = `Bestätigung erwartet ${confirmType} bei ${ms.level.toFixed(1)}`;
+      hlabelText = `Durchbruch über ${confirmType} ${ms.level.toFixed(1)} erwartet`;
+      linePrice = ms.level;
+      lineStartTime = ms.break_time;
     }
 
-    const r = await draw('trend_line',
-      { time: ms.brokenLevel.time, price: ms.brokenLevel.price },
-      { time: ms.now, price: ms.brokenLevel.price },
-      lineStyle, hlabelText);
-    hline = r.ok ? r.entity_id : null;
+    if (linePrice !== null && lineStartTime) {
+      const r = await draw('trend_line',
+        { time: lineStartTime, price: linePrice },
+        { time: ms.now, price: linePrice },
+        lineStyle, hlabelText);
+      hline = r.ok ? r.entity_id : null;
+    }
   }
 
   // Draw vertical line ONLY for confirmed MS
