@@ -499,7 +499,6 @@ async function main() {
     failedRemoves: failedRemoves.length > 0 ? failedRemoves : undefined,
     sync: syncResult,
     orphaned: orphanedResult,
-    cleanup: cleanupResult,
   }));
 
   await disconnect().catch(() => {});
