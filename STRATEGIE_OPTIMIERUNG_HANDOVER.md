@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 08.07.2026 (abends — nach 6-Monats-Backtest v2 + D-Bugfixes)  
+**Stand:** 2026-07-09 (13:31 UTC — Intraday Market Shift Check)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)  
 **Testdaten:** 6 Monate (05.01.–08.07.2026), 130 Handelstage, 632 Szenarien (stündliche Cadence) + 1.115 Szenarien (15min-Kontroll-Lauf)
 
@@ -15,6 +15,20 @@
 - **Zone:** Aktive 4H Supply/Demand Levels (single-price rays)
 - **Premium/Discount:** Aktuelle Price im Discount/Premium der letzten Swing?
 - **Konsolidierung + Sweep:** Enge Range → Wick-Violation ohne Close-through → Retest
+
+## 📡 Live-Status (2026-07-09)
+
+- **1H MS:** ✅ Bestätigt (↓ um 25784.9)
+- **5m MS:** ✅ Bestätigt (↑ um 24972.1)
+**Heute:** 0W / 0L (0% WR)
+### 🔧 FVG Cleanup Completed (13:11 UTC)
+**Problem:** Zwei FVGs bei 25054 (rot) und 24939 (grün) blieben sichtbar nach Invalidierung.
+- **Root Cause:** entity_ids (9cjkES, e4Kn1B) waren invalid/nicht auf TV vorhanden
+- **Redrawn Shapes gefunden:** yikJdb (bullish), nIuu7F (bearish)
+- **Lösung:** Auto-Sync + Orphaned-Cleanup
+  - 18 stale entries markiert (sync_error_stale)
+  - 2 orphaned FVGs gelöscht → Shapes: 34→32, Rectangles: 12→10
+- **Prävention:** check_market_shift.mjs scannt nun kontinuierlich
 
 ---
 
