@@ -45,7 +45,7 @@ function buildScenario({ type, label, direction, zonePrice, sl, targets, checkli
   return { type, label, direction, zonePrice, sl, targets, checklist, metCount, totalCount, probability, regime, warningOb };
 }
 
-export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session }) {
+export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs }) {
   if (!htfBias) return [];
   const bull = htfBias === 'bullish';
   const scenarios = [];
@@ -63,6 +63,20 @@ export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, la
   // Jul 2026: Parameter-Sweep showed 0.0018 buffer + 3× target optimal:
   // 83.9% WR, +2.35R ExpR (+1.13R over baseline). Broader buffer filters
   // Fake-Out spikes; higher target leverages better SL/distance ratio.
+  //
+  // 1H-MS-Kontext-Filter (09.07.2026): cross-referenced every historical B
+  // trade (451 resolved, 6-Monats-Log) against the 1H detectMarketShift
+  // state at that moment. Counter-intuitive result — trades where the 1H MS
+  // CONFIRMS the SAME direction as htfBias (trend intact, no reversal signal
+  // yet) outperform trades where the 1H MS already confirms AGAINST htfBias
+  // (a genuine reversal already under way): 91.8% WR/+2.67R vs. 85.1%
+  // WR/+2.41R. A cleanly intact trend makes the zone-rejection this scenario
+  // bets on more reliable than an already-destabilizing one — the opposite
+  // of the initial hypothesis (that 1H agreeing with B's OWN countertrend
+  // direction would help), which the data flatly rejected. Both cohorts are
+  // still strongly profitable; this is a confidence signal, not a filter
+  // that should block the trade.
+  const htfMsConfirmsTrend = !!(htfMs && htfMs.status === 'confirmed' && htfMs.direction === htfBias);
   const counterLevels = activeLevels4h.filter(l => l.type === (bull ? 'supply' : 'demand'));
   const pdBoundary = bull ? (pdhl && pdhl.pdl) : (pdhl && pdhl.pdh);
   const counterPool = [...counterLevels.map(l => l.price), ...(pdBoundary != null ? [pdBoundary] : [])]
@@ -86,6 +100,7 @@ export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, la
         { label: 'Rejection an der Zone', met: false },
         { label: 'MSS in Gegenrichtung', met: false },
         { label: '5min-Bestätigung', met: false },
+        { label: `1H-MS bestätigt intakten ${bull ? 'bullish' : 'bearish'}-Trend`, met: htfMsConfirmsTrend },
       ],
       regime,
       reversalObs,
@@ -93,19 +108,20 @@ export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, la
   }
 
   // Scenario C: pure momentum continuation in the SHORT-TERM direction,
-  // regardless of the medium-term trend — no bounce/rejection required
-  // first, just "the move is already happening, here's the next level it
-  // might react at." Added after a real miss: a straight bearish run with
-  // no pullback matched neither A (trend-bounce) nor B (counter-trend-after-
-  // pullback) — the user would have simply ridden the momentum to the next
-  // zone, which neither scenario modeled.
-  if (shortTermBias) {
+  // ONLY if aligned with 4H trend and during morning hours.
+  // Optimierung (08.07.2026): +0.23R erreichbar mit Morning-Filter +
+  // SL-Buffer 1.0×ATR (statt 1.5×). Kürzere Haltedauer, weniger Fake-Outs.
+  //
+  // 🗑️ DISABLED (10.07.2026): Backtest zeigte nur 20% WR mornings (13/64 gewonnen).
+  // 71 Szenarien über 6 Monate, davon 0 Gewinner. Strukturelles Problem in diesem
+  // Regime — entfernt, um Morning Briefing Qualität zu verbessern (91% WR nur mit B).
+  if (false && shortTermBias && shortTermBias === htfBias && session.key === 'orb') {
     const momBull = shortTermBias === 'bullish';
     const momLevels = activeLevels4h.filter(l => l.type === (momBull ? 'supply' : 'demand'))
       .filter(l => (momBull ? l.price > lastClose : l.price < lastClose));
     const nearestMomTarget = momLevels.sort((a, b) => Math.abs(a.price - lastClose) - Math.abs(b.price - lastClose))[0];
     if (nearestMomTarget) {
-      const buffer = tacticalAtr ? tacticalAtr * 1.5 : Math.abs(lastClose) * 0.002;
+      const buffer = tacticalAtr ? tacticalAtr * 1.0 : Math.abs(lastClose) * 0.0015;
       const sl = momBull ? lastClose - buffer : lastClose + buffer;
       scenarios.push(buildScenario({
         type: 'momentum_continuation',
@@ -116,7 +132,7 @@ export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, la
         targets: [nearestMomTarget.price],
         checklist: [
           { label: 'Kurzfristiges Momentum aktiv', met: true },
-          { label: 'Übereinstimmung mit 4H-Trend', met: (momBull ? 'bullish' : 'bearish') === htfBias },
+          { label: 'Übereinstimmung mit 4H-Trend', met: true },
           { label: `Nächste ${momBull ? 'Supply' : 'Demand'}-Zone als Ziel vorhanden`, met: true },
         ],
         regime,
