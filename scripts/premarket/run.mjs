@@ -1,25 +1,44 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs';
-import { getState, setSymbol, setTimeframe, setRightOffset } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
+import { getState, setSymbol, setTimeframe } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
 import { getOhlcv } from '/Users/boogy/tradingview-mcp/src/core/data.js';
 import { healthCheck } from '/Users/boogy/tradingview-mcp/src/core/health.js';
 import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture.js';
 import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
-import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioPaths } from './draw.mjs';
+import { berlinTimeString } from './utils.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawMarketShiftMarker } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
 
-const SCENARIO_PATHS_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_paths.json';
+const MARKET_SHIFT_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift.json';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
 
+// Found live on 09.07.2026: setResolution()/waitForChartReady() reported
+// "ready" (symbol matched, bar count stable) while the chart's actual candle
+// data hadn't caught up to the new resolution yet — getOhlcv() returned the
+// PREVIOUS (finer) timeframe's bars, silently mislabeled as e.g. "720". This
+// fed 15min-spaced candles into findSDLevels as if they were 12H bars,
+// producing 46 bogus S/D levels (drawn as purple lines) in one run. Real
+// bars for a given resolution never come in faster than that resolution —
+// so validate the minimum gap between consecutive bars against the
+// requested timeframe and retry (with a longer wait) before accepting.
 async function fetchBars(tf, count = 500) {
-  await setTimeframe({ timeframe: String(tf) });
-  await sleep(1500);
-  const raw = await getOhlcv({ count });
-  return raw.bars || raw;
+  const expectedSec = typeof tf === 'number' ? tf * 60 : null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await setTimeframe({ timeframe: String(tf) });
+    await sleep(1500 * attempt);
+    const raw = await getOhlcv({ count });
+    const bars = raw.bars || raw;
+    if (!expectedSec || bars.length < 2) return bars;
+    const minGapSec = Math.min(...bars.slice(1).map((b, i) => b.time - bars[i].time));
+    if (minGapSec >= expectedSec * 0.9) return bars;
+    if (attempt === 3) {
+      throw new Error(`fetchBars(${tf}): Auflösung stimmt nach ${attempt} Versuchen nicht — kleinster Bar-Abstand ${minGapSec}s < erwartet ~${expectedSec}s. Chart war vermutlich noch auf falscher Auflösung.`);
+    }
+  }
 }
 
 async function main() {
@@ -228,6 +247,50 @@ async function main() {
   // medium-term trend (e.g. a sharp intraday pullback against an unbroken 4H
   // uptrend), which is itself useful information, not a contradiction.
   const shortTermBias = lib.computeLastNBias(tacticalBars, 3);
+
+  // --- Market Shift (MS) detection — HTF (1H) and LTF (5min), independently ---
+  // User-specified, 09.07.2026: only potential/confirmed MS markers now (the
+  // earlier HH/HL/LH/LL swing labels and entry markers are removed
+  // entirely — "mir gefällt das Ergebnis nicht... zeige mir nur potenzielle
+  // Marketshifts und bestätigte Marketshifts an"). See detectMarketShift in
+  // lib.mjs for the exact potential/confirmed/invalidated state machine.
+  //
+  // HTF is 1H, not 4H: checked live against real data (09.07.2026) — 4H was
+  // still stuck at "potential" (the low had broken, but no 4H high had yet
+  // formed to confirm or deny it) while 1H had ALREADY resolved to
+  // "confirmed" on the same underlying move, simply because more 1H swings
+  // had had the chance to form in the same wall-clock time. The user's own
+  // hunch ("ich glaube, dass der 1h chart besser geeignet ist") checked out.
+  const htfMs = lib.detectMarketShift(bars1h, 2);
+  const ltfMs = bars5.length >= 20 ? lib.detectMarketShift(bars5, 2) : { status: 'none' };
+
+  // --- Market Shift Telegram Alerts (5min potential + confirmed) with Dedup ---
+  const MS_ALERTS_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift_alerts.json';
+  const msAlertsState = existsSync(MS_ALERTS_STATE_PATH) ? JSON.parse(readFileSync(MS_ALERTS_STATE_PATH, 'utf8')) : { ltf: { confirmed: null, potential: null } };
+  const msAlerts = [];
+  const MS_ALERT_COOLDOWN_SEC = 3600; // 1 hour — no duplicate alerts within an hour
+
+  if (ltfMs.status === 'confirmed') {
+    const lastConfirmedTime = msAlertsState.ltf?.confirmed || 0;
+    if (nowSec - lastConfirmedTime >= MS_ALERT_COOLDOWN_SEC) {
+      const dirEmoji = ltfMs.direction === 'bullish' ? '📈' : '📉';
+      const levelStr = typeof ltfMs.brokenLevel === 'number' ? ltfMs.brokenLevel.toFixed(1) : 'N/A';
+      msAlerts.push(`✅ BESTÄTIGTER MS (5m)\n${dirEmoji} ${ltfMs.direction === 'bullish' ? 'Bullisch' : 'Bärisch'}\nLevel: ${levelStr}\n🕐 ${berlinTimeString()}`);
+      msAlertsState.ltf.confirmed = nowSec;
+    }
+  } else if (ltfMs.status === 'potential') {
+    const lastPotentialTime = msAlertsState.ltf?.potential || 0;
+    if (nowSec - lastPotentialTime >= MS_ALERT_COOLDOWN_SEC) {
+      const dirEmoji = ltfMs.direction === 'bullish' ? '📈' : '📉';
+      const levelStr = typeof ltfMs.level === 'number' ? ltfMs.level.toFixed(1) : 'N/A';
+      msAlerts.push(`🔹 POTENZIELLER MS (5m)\n${dirEmoji} ${ltfMs.direction === 'bullish' ? 'Bullisch' : 'Bärisch'}\nLevel: ${levelStr}\n⏳ Wartet auf Bestätigung\n🕐 ${berlinTimeString()}`);
+      msAlertsState.ltf.potential = nowSec;
+    }
+  }
+
+  // Save updated MS alert dedup state
+  mkdirSync('/Users/boogy/tradingview-mcp/state', { recursive: true });
+  writeFileSync(MS_ALERTS_STATE_PATH, JSON.stringify(msAlertsState, null, 2));
 
   // --- section 9: invalidation/mitigation pass on tracked state ---
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
@@ -505,7 +568,7 @@ async function main() {
   const { minutesOfDay } = lib.berlinDateTimeParts(nowSec);
   const session = lib.classifySession(minutesOfDay);
 
-  let scenarios = buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss: sweepMssTactical, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session });
+  let scenarios = buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss: sweepMssTactical, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs });
 
   // Backtest filter (change #2): momentum_continuation only if short-term bias
   // aligns with 4H trend AND during morning session (orb/main before 11:30).
@@ -593,35 +656,53 @@ async function main() {
   mkdirSync('/Users/boogy/briefings', { recursive: true });
   writeFileSync(`/Users/boogy/briefings/briefing_${dateStr}.md`, briefingText);
 
-  // --- Coach-style scenario path sketch (redrawn fresh every run) ---
-  // Draws each scenario's expected price path as dashed arrows (current
-  // price -> zone -> target), sets the chart's right-margin so there's room
-  // for a "future" sketch (setVisibleRange/scrollToDate both clamp to real
-  // bars and can't do this), screenshots it, and sends it as a photo
-  // alongside the text — this is the visual the user asked to get "every
-  // time" after reacting well to a one-off manual version.
+  // --- Chart screenshot (sent as a Telegram photo alongside the text) ---
+  // No more scenario-path arrows here — user-specified, 09.07.2026: "bitte
+  // verzichte in Zukunft darauf, Pfeile einzuzeichnen, um mögliche
+  // Entwicklungen anzuzeigen. Das hat sich doch eher als hinderlich
+  // erwiesen." Removed the drawScenarioPaths call and the right-margin
+  // setup that existed only to make room for that sketch. Still captures a
+  // plain screenshot of the live chart (zones/FVGs/MS markers etc. are
+  // still useful to see), just without the arrows.
   let scenarioScreenshotPath = null;
   try {
-    const prevPathIds = existsSync(SCENARIO_PATHS_STATE_PATH) ? JSON.parse(readFileSync(SCENARIO_PATHS_STATE_PATH, 'utf8')) : [];
-    // The path arrows' spacing is computed from tacticalBars' bar interval —
-    // if the chart is displaying a DIFFERENT resolution than tacticalTf at
-    // screenshot time (it's left on whatever `original.resolution` was, per
-    // the restore a few steps up), the same time/price deltas render at a
-    // different visual scale, distorting the sketch (found live: a clean V
-    // became a narrow "kite" when the chart was still on 1H). Force it to
-    // tacticalTf for this, then restore afterward.
-    await setTimeframe({ timeframe: String(tacticalTf) });
-    await sleep(1200);
-    await setRightOffset({ bars: 10 });
-    const { ids: newPathIds } = await drawScenarioPaths(scenarios, tacticalBars, prevPathIds);
-    writeFileSync(SCENARIO_PATHS_STATE_PATH, JSON.stringify(newPathIds));
     mkdirSync('/Users/boogy/briefings', { recursive: true });
     const shot = await captureScreenshot({ region: 'chart', filename: `chart_${dateStr}` });
     if (shot.success) scenarioScreenshotPath = shot.file_path;
     else dataWarnings.push(`Chart-Screenshot fehlgeschlagen: ${JSON.stringify(shot)}`);
-    await setTimeframe({ timeframe: original.resolution });
   } catch (e) {
-    dataWarnings.push(`Szenario-Pfade/Screenshot fehlgeschlagen: ${e.message}`);
+    dataWarnings.push(`Chart-Screenshot fehlgeschlagen: ${e.message}`);
+  }
+
+  // --- Market Shift markers (redrawn fresh every run, like the scenario
+  // paths above) — one slot for HTF (1H), one for LTF (5min); each slot's
+  // previous marker(s) are always removed before new ones are drawn (or
+  // left removed if the current status is 'none'), so at most one
+  // vertical + one horizontal shape per timeframe ever exists at once.
+  // vertical_line/horizontal_ray anchor to an absolute time+price on the
+  // symbol's own timeline, so unlike the arrow-based scenario paths above,
+  // no resolution switch is needed for correct placement.
+  try {
+    const prevIds = existsSync(MARKET_SHIFT_STATE_PATH)
+      ? JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'))
+      : { htf: {}, ltf: {} };
+    const htfIds = await drawMarketShiftMarker(htfMs, '1H', prevIds.htf);
+    const ltfIds = await drawMarketShiftMarker(ltfMs, '5m', prevIds.ltf);
+    writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({ htf: htfIds, ltf: ltfIds }));
+  } catch (e) {
+    dataWarnings.push(`Market-Shift-Marker fehlgeschlagen: ${e.message}`);
+  }
+
+  // --- Market Shift Telegram Alerts (sent separately, before briefing) ---
+  let msTelegramResults = [];
+  for (const msAlert of msAlerts) {
+    try {
+      const msResult = await sendTelegramBriefing(msAlert);
+      msTelegramResults.push({ sent: msResult.sent, status: msResult.status });
+    } catch (e) {
+      msTelegramResults.push({ sent: false, error: e.message });
+      dataWarnings.push(`MS-Telegram-Versand fehlgeschlagen: ${e.message}`);
+    }
   }
 
   // telegram.mjs's own functions already catch their internal errors and
@@ -637,7 +718,7 @@ async function main() {
   }
   try {
     telegramPhotoResult = scenarioScreenshotPath
-      ? await sendTelegramPhoto(scenarioScreenshotPath, 'Deine Szenarien im Chart 📈')
+      ? await sendTelegramPhoto(scenarioScreenshotPath, 'Aktueller Chart 📈')
       : { sent: false, reason: 'Kein Screenshot verfügbar' };
   } catch (e) {
     telegramPhotoResult = { sent: false, error: e.message };
