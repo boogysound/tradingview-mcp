@@ -1,0 +1,82 @@
+[
+  {
+    "id": "counter_trend_1783432789",
+    "loggedAt": "2026-07-07T13:59:49.676Z",
+    "loggedBarTime": 1783431900,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25695.84,
+    "sl": 25711.257504,
+    "target": 25684.25,
+    "grade": "C",
+    "resolved": false,
+    "outcome": null
+  },
+  {
+    "id": "counter_trend_1783495265",
+    "loggedAt": "2026-07-08T07:21:05.983Z",
+    "loggedBarTime": 1783494900,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25408.79,
+    "sl": 25424.035274,
+    "target": 25133.7,
+    "grade": "C",
+    "resolved": false,
+    "outcome": null
+  },
+  {
+    "id": "counter_trend_1783581943",
+    "loggedAt": "2026-07-09T07:25:43.251Z",
+    "loggedBarTime": 1783581300,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25438.47,
+    "sl": 25484.259246,
+    "target": 25575.837738000002,
+    "grade": "C",
+    "resolved": false,
+    "outcome": null
+  },
+  {
+    "id": "counter_trend_1783581962",
+    "loggedAt": "2026-07-09T07:26:02.017Z",
+    "loggedBarTime": 1783581300,
+    "type": "counter_trend",
+    "direction": "LONG",
+    "zonePrice": 24683.49,
+    "sl": 24639.059718,
+    "target": 24550.199153999998,
+    "grade": "C",
+    "resolved": false,
+    "outcome": null
+  },
+  {
+    "id": "consolidation_breakout_1783581962",
+    "loggedAt": "2026-07-09T07:26:02.017Z",
+    "loggedBarTime": 1783581300,
+    "type": "consolidation_breakout",
+    "direction": "SHORT",
+    "zonePrice": 25014.63,
+    "sl": 25077.95357142857,
+    "target": 24683.49,
+    "grade": "B+",
+    "resolved": true,
+    "outcome": "sl_hit",
+    "resolvedAt": "2026-07-09T19:00:10.344Z"
+  },
+  {
+    "id": "counter_trend_1783604750",
+    "loggedAt": "2026-07-09T13:45:50.817Z",
+    "loggedBarTime": 1783604700,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25043.5,
+    "sl": 25088.5783,
+    "target": 25178.734900000003,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-09T19:00:10.344Z"
+  }
+]
