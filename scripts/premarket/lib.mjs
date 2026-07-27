@@ -448,13 +448,26 @@ export function findOrderBlocks(bars, bosEvents, horizon = 25, minGapAtrMult = 0
       }
     }
   }
-  // section 9.2: invalidated once a candle CLOSES all the way through the
-  // zone to the opposite side (a wick test/bounce does NOT invalidate it)
+  // section 9.2: invalidated once price has crossed all the way through the
+  // zone to the opposite side — any wick counts, not just a candle close
+  // (user-specified, 27.07.2026: "es sollte generell kein OB eingezeichnet
+  // sein, der bereits vom Kurs durchkreuzt worden ist" — a block price has
+  // already traded through isn't a meaningful support/resistance anymore,
+  // whether or not a candle actually closed beyond it).
+  //
+  // Scans from o.index+1 (right after the OB candle itself), NOT o.bos_index+1
+  // (after the confirming BOS) — those aren't the same bars, and scanning
+  // only from bos_index missed dips during the OB's own impulse/confirmation
+  // leg. That mismatch against state.mjs's isInvalidated() (which scans
+  // every bar after created_bar_time == o.time) caused a live oscillation:
+  // the tracked entry got removed as invalidated on one run, then this
+  // looser check re-detected + redrew the exact same already-crossed OB as
+  // fresh on the next run. Both must agree on the same window.
   for (const o of obs) {
     o.mitigated = false;
-    for (let k = o.bos_index + 1; k < bars.length; k++) {
-      if (o.type === 'bullish' && bars[k].close < o.low) { o.mitigated = true; break; }
-      if (o.type === 'bearish' && bars[k].close > o.high) { o.mitigated = true; break; }
+    for (let k = o.index + 1; k < bars.length; k++) {
+      if (o.type === 'bullish' && bars[k].low < o.low) { o.mitigated = true; break; }
+      if (o.type === 'bearish' && bars[k].high > o.high) { o.mitigated = true; break; }
     }
   }
   // dedupe (same pivot candle can be referenced by more than one BOS in edge cases)

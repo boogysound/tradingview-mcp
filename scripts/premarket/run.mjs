@@ -6,7 +6,7 @@ import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture
 import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
-import { berlinTimeString } from './utils.mjs';
+import { berlinTimeString, getBerlinTime } from './utils.mjs';
 import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawMarketShiftMarker } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
@@ -542,6 +542,76 @@ async function main() {
       }
     }
   }
+
+  // --- Declutter pass (user-specified, 27.07.2026 — "zu viele Linien auf
+  // dem Chart"): cap how many objects of each kind stay visible, keeping the
+  // ones nearest to the current price rather than the newest ones. ---
+
+  // 4H/12H S/D levels: min 1, max 3 per (type, timeframe) group, nearest to
+  // price first. Excess (beyond 3) gets removed from chart + state; if a
+  // group would end up empty, fall back to the single nearest RAW candidate
+  // (bypassing the 15-day/5%-distance filters above, but still respecting
+  // alreadyTracked so a permanently-invalidated level never gets resurrected)
+  // so the chart never loses all directional context for that group.
+  async function capNearestToPrice(matchFn, max) {
+    const group = zonesState.filter(e => e.status === 'active' && matchFn(e));
+    if (group.length <= max) return;
+    const sorted = [...group].sort((a, b) => Math.abs(a.price_low - lastClose) - Math.abs(b.price_low - lastClose));
+    for (const entry of sorted.slice(max)) {
+      const r = await remove(entry.tv_entity_id);
+      entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'declutter_max_per_group';
+      removedLog.push({ id: entry.id, reason: 'declutter_max_per_group', remove_result: r });
+    }
+  }
+  async function ensureMinOneLevel(rawLevels, wantedSubtype, type, timeframe, colorKey, tfLabel) {
+    const activeCount = zonesState.filter(e => e.status === 'active' && e.type === type && e.timeframe === timeframe).length;
+    if (activeCount > 0) return;
+    const candidates = rawLevels.filter(l => l.type === wantedSubtype && !alreadyTracked(l, timeframe));
+    if (!candidates.length) return;
+    const nearest = [...candidates].sort((a, b) => Math.abs(a.price - lastClose) - Math.abs(b.price - lastClose))[0];
+    await maybeDrawLevel(type, timeframe, nearest, colorKey, `${tfLabel} ${wantedSubtype === 'demand' ? 'Demand' : 'Supply'}`);
+  }
+  const MAX_SD_LEVELS_PER_GROUP = 3;
+  const rawSdLevels12h = lib.findSDLevels(bars12h, { nowSec });
+  const rawSdLevels4h = lib.findSDLevels(bars4h, { nowSec });
+  await ensureMinOneLevel(rawSdLevels12h, 'demand', 'sd_level_demand', 720, 'sd_level_12h', '12H');
+  await ensureMinOneLevel(rawSdLevels12h, 'supply', 'sd_level_supply', 720, 'sd_level_12h', '12H');
+  await ensureMinOneLevel(rawSdLevels4h, 'demand', 'sd_level_demand', 240, 'sd_level_4h', '4H');
+  await ensureMinOneLevel(rawSdLevels4h, 'supply', 'sd_level_supply', 240, 'sd_level_4h', '4H');
+  await capNearestToPrice(e => e.type === 'sd_level_demand' && e.timeframe === 720, MAX_SD_LEVELS_PER_GROUP);
+  await capNearestToPrice(e => e.type === 'sd_level_supply' && e.timeframe === 720, MAX_SD_LEVELS_PER_GROUP);
+  await capNearestToPrice(e => e.type === 'sd_level_demand' && e.timeframe === 240, MAX_SD_LEVELS_PER_GROUP);
+  await capNearestToPrice(e => e.type === 'sd_level_supply' && e.timeframe === 240, MAX_SD_LEVELS_PER_GROUP);
+
+  // S/R lines (ex-S/D zones broken and flipped, sr_flip_support/resistance):
+  // max 3 above price, max 3 below price; hidden once older than 3 months —
+  // except the morning run always keeps the nearest one on each side alive
+  // even if stale, so the briefing never loses all directional context.
+  const SR_MAX_AGE_SEC = 90 * 24 * 3600;
+  const isMorningRun = getBerlinTime().getHours() < 15;
+  const srFlipActive = zonesState.filter(e => e.status === 'active' && (e.type === 'sr_flip_support' || e.type === 'sr_flip_resistance'));
+  const srAbove = srFlipActive.filter(e => e.price_low > lastClose).sort((a, b) => a.price_low - b.price_low);
+  const srBelow = srFlipActive.filter(e => e.price_low <= lastClose).sort((a, b) => b.price_low - a.price_low);
+  async function declutterSrSide(sideSorted) {
+    const nearest3 = sideSorted.slice(0, 3);
+    for (const entry of sideSorted.slice(3)) {
+      const r = await remove(entry.tv_entity_id);
+      entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'declutter_max_per_side';
+      removedLog.push({ id: entry.id, reason: 'declutter_max_per_side', remove_result: r });
+    }
+    for (let i = 0; i < nearest3.length; i++) {
+      const entry = nearest3[i];
+      const ageSec = nowSec - Math.floor(new Date(entry.converted_at || entry.created_at).getTime() / 1000);
+      const keepAnyway = isMorningRun && i === 0;
+      if (ageSec > SR_MAX_AGE_SEC && !keepAnyway) {
+        const r = await remove(entry.tv_entity_id);
+        entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'sr_line_older_than_3_months';
+        removedLog.push({ id: entry.id, reason: 'sr_line_older_than_3_months', remove_result: r });
+      }
+    }
+  }
+  await declutterSrSide(srAbove);
+  await declutterSrSide(srBelow);
 
   // Prune removed/stale entries older than 7 days — they're never read again
   // (only 'active'/'breached'/'historical' entries feed any logic above),
