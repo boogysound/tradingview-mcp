@@ -468,10 +468,25 @@ export function findOrderBlocks(bars, bosEvents, horizon = 25, minGapAtrMult = 0
 }
 
 // ---------- Fair Value Gap (section 5) — classic 3-candle imbalance ----------
+// A genuine FVG needs three candles trading back-to-back without a break —
+// the price-overlap check alone can't tell that apart from a weekend/holiday
+// reopen jump, which satisfies the same low/high relation but is just the
+// market being closed, not a real imbalance. Found live 27.07.2026: a 190pt
+// "bullish FVG" spanning Fri 22:00 -> Mon 00:00 CET (vs. ~12pt for genuine
+// ones) got drawn on the chart from the weekend gap alone.
 export function findFVGs(bars) {
   const gaps = [];
+  const diffs = [];
+  for (let i = 1; i < bars.length; i++) diffs.push(bars[i].time - bars[i - 1].time);
+  diffs.sort((a, b) => a - b);
+  const typicalInterval = diffs[Math.floor(diffs.length / 2)] || 0;
+  // k1->k3 normally spans exactly 2 bars; anything past 3x that (generous
+  // margin for minor irregularities) means a session gap sits in between.
+  const MAX_SPAN = typicalInterval * 2 * 3;
+
   for (let i = 1; i < bars.length - 1; i++) {
     const k1 = bars[i - 1], k3 = bars[i + 1];
+    if (typicalInterval > 0 && (k3.time - k1.time) > MAX_SPAN) continue;
     if (k3.low > k1.high) gaps.push({ type: 'bullish', low: k1.high, high: k3.low, time: bars[i].time, index: i });
     else if (k3.high < k1.low) gaps.push({ type: 'bearish', low: k3.high, high: k1.low, time: bars[i].time, index: i });
   }
