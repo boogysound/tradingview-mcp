@@ -317,8 +317,14 @@ async function main() {
 
     // Remove all S/R levels (user no longer needs them)
     if (entry.type === 'sr_support' || entry.type === 'sr_resistance') { shouldRemove = true; reason = 'sr_disabled'; }
-    // PDHL entries are removed daily (they're recalculated fresh each run)
-    else if (entry.type === 'pdh' || entry.type === 'pdl') { shouldRemove = true; reason = 'pdhl_daily_refresh'; }
+    // PDHL entries are recalculated once per day, not once per run — comparing
+    // only the date part of created_at keeps them alive across repeated runs
+    // within the same day. Without this check, findDuplicate() below never
+    // matches (it only counts active/historical entries), so every single
+    // run pushed a fresh pdh/pdl entry and redrew the TV shape, even when
+    // nothing had changed — found via 70 duplicate pdh_0_... entries in
+    // zones.json from a single day of frequent testing.
+    else if ((entry.type === 'pdh' || entry.type === 'pdl') && entry.created_at?.slice(0, 10) !== nowIso.slice(0, 10)) { shouldRemove = true; reason = 'pdhl_daily_refresh'; }
     // HTF zones/OBs (12H/4H) that price has drifted more than 5% away from —
     // no longer practically tradeable, even if never price-invalidated.
     else if ((entry.timeframe === 720 || entry.timeframe === 240) && HTF_ZONE_TYPES.includes(entry.type) &&
@@ -537,7 +543,18 @@ async function main() {
     }
   }
 
-  state.writeState(zonesState);
+  // Prune removed/stale entries older than 7 days — they're never read again
+  // (only 'active'/'breached'/'historical' entries feed any logic above),
+  // so keeping them forever just grows zones.json unboundedly. 7 days keeps
+  // recent history around for debugging without the file growing forever.
+  const PRUNE_AGE_SEC = 7 * 24 * 3600;
+  const prunedState = zonesState.filter(e => {
+    if (e.status !== 'removed' && e.status !== 'sync_error_stale') return true;
+    const ts = e.removed_at || e.created_at;
+    return !ts || (nowSec - Math.floor(new Date(ts).getTime() / 1000)) < PRUNE_AGE_SEC;
+  });
+
+  state.writeState(prunedState);
 
   // --- entries + briefing (Trend 4H / Zone 4H / FVG-direction / Premium-Discount / Bestätigung 5min) ---
   // "Zone" is fed by the same active 4H S/D levels drawn on the chart (state

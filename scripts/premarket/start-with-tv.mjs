@@ -11,19 +11,31 @@
 
 import { healthCheck, launch } from '../../src/core/health.js';
 
+// A CDP connection can succeed before TradingView's own chart API
+// (window.TradingViewApi) has finished initializing — healthCheck() then
+// returns successfully but with api_available: false and symbol: 'unknown'.
+// run.mjs's first call (getState) assumes the chart API is ready and throws
+// a TypeError on '_activeChartWidgetWV' if called too early, so "connected"
+// must mean api_available === true, not just "CDP didn't throw".
+async function waitForChartApi(maxAttempts, intervalMs) {
+  for (let attempts = 1; attempts <= maxAttempts; attempts++) {
+    try {
+      const health = await healthCheck();
+      if (health.api_available) return health;
+    } catch { /* CDP not reachable yet — keep retrying */ }
+    if (attempts % 5 === 0) console.log(`   Versuch ${attempts}/${maxAttempts}...`);
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  return null;
+}
+
 async function main() {
   console.log('🔍 Prüfe TradingView-Verbindung...');
 
-  let connected = false;
-  try {
-    const health = await healthCheck();
-    console.log('✅ TradingView verbunden:');
-    console.log('   Symbol:', health.chart_symbol);
-    console.log('   Resolution:', health.chart_resolution);
-    console.log('   API verfügbar:', health.api_available);
-    connected = true;
-  } catch (err) {
-    console.log('❌ Verbindung fehlgeschlagen:', err.message);
+  let health = await waitForChartApi(1, 0);
+
+  if (!health) {
+    console.log('❌ Verbindung fehlgeschlagen oder Chart-API nicht bereit.');
     console.log('\n🚀 Starte TradingView automatisch...');
 
     try {
@@ -33,30 +45,11 @@ async function main() {
       console.log('   Binary:', result.binary);
       console.log('   CDP URL:', result.cdp_url);
 
-      // Warte bis zu 60s auf Verbindung
-      console.log('\n⏳ Warte auf TradingView-Verbindung (max 60s)...');
-      let attempts = 0;
-      const maxAttempts = 60;
+      console.log('\n⏳ Warte auf TradingView Chart-API (max 60s)...');
+      health = await waitForChartApi(60, 1000);
 
-      while (attempts < maxAttempts) {
-        try {
-          const health = await healthCheck();
-          console.log('✅ TradingView online!');
-          console.log('   Symbol:', health.chart_symbol);
-          console.log('   Resolution:', health.chart_resolution);
-          connected = true;
-          break;
-        } catch (innerErr) {
-          attempts++;
-          if (attempts % 5 === 0) {
-            console.log(`   Versuch ${attempts}/${maxAttempts}...`);
-          }
-          await new Promise(r => setTimeout(r, 1000));
-        }
-      }
-
-      if (!connected) {
-        console.log('⚠️ Timeout: TradingView antwortet nicht nach 60s');
+      if (!health) {
+        console.log('⚠️ Timeout: TradingView Chart-API nicht bereit nach 60s');
         console.log('Starten Sie TradingView manuell mit CDP-Port 9222:');
         console.log('  TradingView --remote-debugging-port=9222');
         process.exit(1);
@@ -69,10 +62,13 @@ async function main() {
     }
   }
 
-  if (connected) {
-    console.log('\n▶️  Starte run.mjs...\n');
-    const run = await import('./run.mjs');
-  }
+  console.log('✅ TradingView online:');
+  console.log('   Symbol:', health.chart_symbol);
+  console.log('   Resolution:', health.chart_resolution);
+  console.log('   API verfügbar:', health.api_available);
+
+  console.log('\n▶️  Starte run.mjs...\n');
+  await import('./run.mjs');
 }
 
 main().catch(err => {
