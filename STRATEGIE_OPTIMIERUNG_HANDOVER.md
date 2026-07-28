@@ -116,15 +116,25 @@ folgende Bugs gefunden und gefixt (chronologisch):
     `stopReplay()` auf, obwohl Replay nie gestartet war — Crash ohne Test-Summary.
 13. **`telegram.mjs` und `utils.mjs` waren nie im Git** — harte Laufzeit-
     abhängigkeiten, ein frischer Checkout wäre kaputt gewesen. Jetzt getrackt.
+14. **Regression beim `fetchBars`/`sleep`-Umzug nach `utils.mjs`**: Zwei direkte
+    Aufrufe (`setTimeframe` fürs Zurücksetzen der Chart-Auflösung, `sleep(2000)`)
+    blieben in `run.mjs` ohne eigenen Import zurück — `ReferenceError` erst beim
+    manuellen Test des `morning-briefing`-Jobs entdeckt, nicht vorher beim Linten.
+15. **Kritischer ESLint-Blindfleck**: `files: ['**/*.js']` erfasste nie
+    `.mjs`-Dateien — also **nie eines der Skripte in `scripts/premarket/`** die
+    ganze Session über, trotz wiederholt gemeldetem "0 Fehler". Auf `.mjs`
+    erweitert; hat sofort Fund #14 statisch bestätigt plus zwei echte Fehler in
+    `telegram.mjs` (`FormData`/`Blob` fehlten als Node-Globals in der Config).
 
 **Neue Dateien:** `scripts/premarket/ms_alerts.mjs` (geteilte MS-Detection/Alert/
 Draw-Logik), `scripts/premarket/check_ms.mjs` (schlanker 10-Min-Checker),
 `scripts/premarket/start-with-tv.mjs` (Auto-Start-Wrapper für TradingView).
 
-**Verifiziert:** 141/141 Unit-Tests grün, Lint 0/0, mehrere komplette Live-Läufe
-von `run.mjs` und 3 aufeinanderfolgende `launchctl kickstart`-Läufe von
-`check_ms.mjs` (inkl. worst-case Timeframe-Sprung), alle mit Telegram-Zustellung
-bestätigt.
+**Verifiziert:** 141/141 Unit-Tests grün, Lint 0/0 (jetzt inkl. `.mjs`), mehrere
+komplette Live-Läufe von `run.mjs`, 3 aufeinanderfolgende `launchctl kickstart`-
+Läufe von `check_ms.mjs` (inkl. worst-case Timeframe-Sprung), und ein manuell via
+`launchctl kickstart` getriggerter `com.boogy.de40-morning-briefing`-Lauf — alle
+mit Telegram-Zustellung (Text + Foto) bestätigt.
 
 **Nebenbefund (nicht Teil des Systems):** Der Mac war während der Session kurz auf
 99% Festplattenauslastung (126 MB frei) — verursacht TradingView/CDP-Instabilität
@@ -136,7 +146,8 @@ Falls das wiederkehrt: `df -h /` prüfen.
 Cleanup), `c4caa8a` (5m-MS-Alerts), `80548df` (Chart-Declutter + OB-Fix),
 `98c3e46` (FVG-Weekend-Gap-Fix), `448ed91` (MS-Alert-Überarbeitung + Berlin-Zeit-
 Fix + launchd-Migration), `0ef2823` (check_ms.mjs-Retry-Fix), `a767c38`
-(e2e-Test-Fix, separate Session).
+(e2e-Test-Fix, separate Session), `e76e784` (Handover-Update), `1fa8d1f`
+(run.mjs-Regression + ESLint-`.mjs`-Blindfleck-Fix).
 
 ---
 
