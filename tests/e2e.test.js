@@ -1163,7 +1163,6 @@ val = array.get(a, 5)`;
         const rp = REPLAY_API;
         const started = await evaluate(wv(`${rp}.isReplayStarted()`));
         if (started) {
-          await evaluate(`${rp}.stopReplay()`);
           await evaluate(`${rp}.goToRealtime()`);
           await evaluate(`${rp}.hideReplayToolbar()`);
           await sleep(500);
@@ -1240,9 +1239,11 @@ val = array.get(a, 5)`;
       const started = await evaluate(wv(`${REPLAY_API}.isReplayStarted()`));
       if (!started) return;
 
-      await evaluate(`${REPLAY_API}.stopReplay()`);
+      // goToRealtime() calls stopReplay() internally, so calling stopReplay()
+      // explicitly first makes it run twice — TradingView throws "Replay is
+      // not started" on the second call, which crashed the whole test run.
       await evaluate(`${REPLAY_API}.goToRealtime()`);
-      await evaluate(`${REPLAY_API}.hideReplayToolbar()`);
+      try { await evaluate(`${REPLAY_API}.hideReplayToolbar()`); } catch {}
       await sleep(500);
 
       const stoppedNow = await evaluate(wv(`${REPLAY_API}.isReplayStarted()`));
