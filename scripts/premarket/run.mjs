@@ -1,44 +1,17 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs';
-import { getState, setSymbol, setTimeframe } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
-import { getOhlcv } from '/Users/boogy/tradingview-mcp/src/core/data.js';
+import { getState, setSymbol } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
 import { healthCheck } from '/Users/boogy/tradingview-mcp/src/core/health.js';
 import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture.js';
 import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
-import { berlinTimeString, getBerlinHour } from './utils.mjs';
+import { berlinTimeString, getBerlinHour, fetchBars } from './utils.mjs';
 import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
 import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
-
-// Found live on 09.07.2026: setResolution()/waitForChartReady() reported
-// "ready" (symbol matched, bar count stable) while the chart's actual candle
-// data hadn't caught up to the new resolution yet — getOhlcv() returned the
-// PREVIOUS (finer) timeframe's bars, silently mislabeled as e.g. "720". This
-// fed 15min-spaced candles into findSDLevels as if they were 12H bars,
-// producing 46 bogus S/D levels (drawn as purple lines) in one run. Real
-// bars for a given resolution never come in faster than that resolution —
-// so validate the minimum gap between consecutive bars against the
-// requested timeframe and retry (with a longer wait) before accepting.
-async function fetchBars(tf, count = 500) {
-  const expectedSec = typeof tf === 'number' ? tf * 60 : null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    await setTimeframe({ timeframe: String(tf) });
-    await sleep(1500 * attempt);
-    const raw = await getOhlcv({ count });
-    const bars = raw.bars || raw;
-    if (!expectedSec || bars.length < 2) return bars;
-    const minGapSec = Math.min(...bars.slice(1).map((b, i) => b.time - bars[i].time));
-    if (minGapSec >= expectedSec * 0.9) return bars;
-    if (attempt === 3) {
-      throw new Error(`fetchBars(${tf}): Auflösung stimmt nach ${attempt} Versuchen nicht — kleinster Bar-Abstand ${minGapSec}s < erwartet ~${expectedSec}s. Chart war vermutlich noch auf falscher Auflösung.`);
-    }
-  }
-}
 
 async function main() {
   const dataWarnings = [];

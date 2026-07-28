@@ -5,6 +5,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { healthCheck, launch } from '../../src/core/health.js';
+import { setTimeframe } from '../../src/core/chart.js';
+import { getOhlcv } from '../../src/core/data.js';
 
 // ---------- BERLIN TIME UTILITIES ----------
 // Rewritten 28.07.2026 — the previous getBerlinTime() constructed a German-
@@ -183,6 +185,37 @@ export async function ensureTradingViewReady({ onLog = () => {} } = {}) {
 // ---------- SLEEP/RETRY ----------
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---------- CHART DATA FETCHING (resolution-switch settle/retry) ----------
+// Real bars for a given resolution never arrive faster than that resolution,
+// and the chart's OHLCV buffer can still be empty/mid-load right after a
+// resolution switch (or right after ensureTradingViewReady's api_available
+// check passes — that only confirms the chart API object exists, not that
+// its bars buffer is populated yet). getOhlcv() then either throws ("Could
+// not extract OHLCV data...") or silently returns bars from the PREVIOUS
+// resolution. Found live 09.07.2026 (mismatched timeframe, no throw) and
+// 28.07.2026 (check_ms.mjs's own naive version had no retry at all and
+// failed on every single 10-minute run since deployment — always caught the
+// chart mid-load right after a resolution switch).
+export async function fetchBars(tf, count = 500) {
+  const expectedSec = typeof tf === 'number' ? tf * 60 : null;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await setTimeframe({ timeframe: String(tf) });
+    await sleep(1500 * attempt);
+    try {
+      const raw = await getOhlcv({ count });
+      const bars = raw.bars || raw;
+      if (!expectedSec || bars.length < 2) return bars;
+      const minGapSec = Math.min(...bars.slice(1).map((b, i) => b.time - bars[i].time));
+      if (minGapSec >= expectedSec * 0.9) return bars;
+      lastErr = new Error(`Auflösung stimmt nicht — kleinster Bar-Abstand ${minGapSec}s < erwartet ~${expectedSec}s.`);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`fetchBars(${tf}) nach 3 Versuchen fehlgeschlagen: ${lastErr?.message}`);
+}
 
 export async function retry(fn, maxAttempts = 3, delayMs = 1000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {

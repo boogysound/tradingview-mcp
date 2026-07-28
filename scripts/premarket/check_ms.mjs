@@ -13,17 +13,9 @@
  * Kept deliberately minimal (no zone/OB/FVG processing, no scenario
  * logging, no screenshot) to stay cheap enough for a 10-minute cadence.
  */
-import { setTimeframe } from '../../src/core/chart.js';
-import { getOhlcv } from '../../src/core/data.js';
 import { disconnect } from '../../src/connection.js';
-import { ensureTradingViewReady, isXetraOpen } from './utils.mjs';
+import { ensureTradingViewReady, isXetraOpen, fetchBars } from './utils.mjs';
 import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
-
-async function fetchBars(tf, count) {
-  await setTimeframe({ timeframe: String(tf) });
-  const raw = await getOhlcv({ count });
-  return raw.bars || raw;
-}
 
 async function main() {
   if (!isXetraOpen()) {
