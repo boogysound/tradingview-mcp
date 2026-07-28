@@ -1,11 +1,11 @@
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'fs';
-import { getState, setSymbol } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
+import { getState, setTimeframe } from '/Users/boogy/tradingview-mcp/src/core/chart.js';
 import { healthCheck } from '/Users/boogy/tradingview-mcp/src/core/health.js';
 import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture.js';
 import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
-import { berlinTimeString, getBerlinHour, fetchBars } from './utils.mjs';
+import { getBerlinHour, fetchBars, sleep } from './utils.mjs';
 import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
@@ -29,10 +29,9 @@ async function main() {
 
   const original = await getState();
 
-  // symbol is expected to already be DE40 on this chart; set explicitly per spec step 2
-  // (left as a no-op setSymbol call is risky if the exact ticker differs across brokers,
-  // so we verify first and only force-set if it's clearly wrong)
-  const currentSymbol = health.target_url && health.chart_symbol;
+  // symbol is expected to already be DE40 on this chart; a no-op setSymbol
+  // call is risky if the exact ticker differs across brokers, so we only
+  // warn rather than force-set it.
   if (!/DE40/i.test(String(health.chart_symbol || ''))) {
     dataWarnings.push(`Chart-Symbol war "${health.chart_symbol}", nicht DE40 — bitte manuell prüfen (kein automatisches setSymbol ausgeführt, um keinen falschen Broker-Ticker zu erzwingen).`);
   }
@@ -238,7 +237,7 @@ async function main() {
   // (every ~10min via its own launchd job) — see that file for why alerts
   // moved off a time-based cooldown onto signature-based dedup, and why 1H/4H
   // alerting was added alongside the pre-existing 5min-only path.
-  const { ltfMs, htfMs } = await checkAndAlertMarketShifts({ bars5, bars1h, bars4h });
+  const { htfMs } = await checkAndAlertMarketShifts({ bars5, bars1h, bars4h });
 
   // --- section 9: invalidation/mitigation pass on tracked state ---
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };

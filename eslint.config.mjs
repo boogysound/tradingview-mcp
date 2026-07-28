@@ -7,9 +7,16 @@
 // `no-undef` flags those statically, so CI blocks the regression at PR time.
 //
 // Globals below are the runtime APIs used across src/ (Node + browser/CDP context).
+//
+// `files` covers .mjs too (not just .js) — found live 28.07.2026: every file
+// under scripts/premarket/ is .mjs, so it had been silently invisible to
+// this whole config the entire time. A `setTimeframe is not defined`
+// ReferenceError from an incomplete refactor (moving fetchBars to utils.mjs
+// left one direct setTimeframe call without its own import) only surfaced
+// via a live launchd run, not via `eslint .` despite it reporting 0 problems.
 export default [
   {
-    files: ['**/*.js'],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -20,6 +27,7 @@ export default [
         URLSearchParams: 'readonly', WebSocket: 'readonly', AbortController: 'readonly',
         TextEncoder: 'readonly', TextDecoder: 'readonly', global: 'readonly',
         __dirname: 'readonly', structuredClone: 'readonly', queueMicrotask: 'readonly',
+        FormData: 'readonly', Blob: 'readonly',
       },
     },
     rules: {

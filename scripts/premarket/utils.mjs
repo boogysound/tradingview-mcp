@@ -100,7 +100,7 @@ export function writeJSON(filePath, data, indent = 2) {
       try {
         const current = readFileSync(filePath, 'utf8');
         writeFileSync(backupPath, current);
-      } catch (e) {
+      } catch {
         // Backup failure is non-fatal; proceed with write
       }
     }
