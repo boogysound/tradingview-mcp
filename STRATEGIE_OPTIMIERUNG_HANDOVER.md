@@ -132,9 +132,10 @@ Draw-Logik), `scripts/premarket/check_ms.mjs` (schlanker 10-Min-Checker),
 
 **Verifiziert:** 141/141 Unit-Tests grün, Lint 0/0 (jetzt inkl. `.mjs`), mehrere
 komplette Live-Läufe von `run.mjs`, 3 aufeinanderfolgende `launchctl kickstart`-
-Läufe von `check_ms.mjs` (inkl. worst-case Timeframe-Sprung), und ein manuell via
-`launchctl kickstart` getriggerter `com.boogy.de40-morning-briefing`-Lauf — alle
-mit Telegram-Zustellung (Text + Foto) bestätigt.
+Läufe von `check_ms.mjs` (inkl. worst-case Timeframe-Sprung). Alle 3 launchd-Jobs
+(`morning-briefing`, `evening-sync`, `ms-check`) einzeln manuell via
+`launchctl kickstart` getriggert und bestätigt — jeweils Exit 0, Telegram-
+Zustellung (Text + Foto) erfolgreich.
 
 **Nebenbefund (nicht Teil des Systems):** Der Mac war während der Session kurz auf
 99% Festplattenauslastung (126 MB frei) — verursacht TradingView/CDP-Instabilität
