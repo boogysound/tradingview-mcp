@@ -303,7 +303,7 @@ function describeMarketNarrative(htfBias, lastBosTrend, premiumDiscount, activeL
 // user tried prose-only for the checklist and asked for the bullets +
 // colored-emoji checklist back, keeping the direct, personal framing.
 function describeScenario(s, idx) {
-  const letter = String.fromCharCode(65 + idx);
+  const typeLabel = s.type === 'counter_trend' ? 'B: Gegentrend-Fade' : s.type === 'consolidation_breakout' ? 'D: Konsolidierungs-Breakout' : `Typ: ${s.type}`;
   const dirWord = s.direction === 'LONG' ? 'Long' : 'Short';
   const ratingText = s.probability === 'B+'
     ? 'Solide Chance, wenn die Bestätigung kommt.'
@@ -312,7 +312,7 @@ function describeScenario(s, idx) {
       : 'Eher schwach im Moment, nur mit Vorsicht angehen.';
   const tp = s.targets[0];
 
-  const lines = [`Szenario ${letter}: ${s.label} — dein ${dirWord}-Plan, falls der Kurs bei ${s.zonePrice.toFixed(1)} reagiert.`];
+  const lines = [`🎯 Szenario ${typeLabel}: ${s.label} — dein ${dirWord}-Plan, falls der Kurs bei ${s.zonePrice.toFixed(1)} reagiert.`];
   lines.push(`• Zone: ${s.zonePrice.toFixed(1)}`);
   lines.push(`• Stopp: ${s.sl.toFixed(1)}`);
   lines.push(`• Ziel: ${tp != null ? tp.toFixed(1) : 'n/a'}`);
@@ -365,7 +365,22 @@ export function buildBriefing({ regime, htfBias, lastBosTrend, shortTermBias, pr
       lines.push(describeScenario(s, idx));
     });
   } else {
-    lines.push('Aktuell keine Szenarien ableitbar (kein Trend oder keine aktiven Level).');
+    // No B/D setup qualifies today — most often because no opposing 4H
+    // level exists yet for B to fade into. User-specified, 28.07.2026: still
+    // surface the nearest levels worth watching instead of just "nichts
+    // ableitbar" — but explicitly as observation only, NOT a trade idea.
+    // B/D's own entry conditions (backtest-calibrated, 87.8%/100% WR) are
+    // deliberately left untouched here — this is not a third scenario type.
+    lines.push('Aktuell kein B/D-Setup aktiv (kein Trend oder keine aktive Gegentrend-Zone).');
+    const nearest = (activeLevels4h || [])
+      .slice()
+      .sort((a, b) => Math.abs(a.price - lastClose) - Math.abs(b.price - lastClose))
+      .slice(0, 2);
+    if (nearest.length) {
+      lines.push('');
+      lines.push('👀 Kein Trade-Signal, nur zur Beobachtung — die nächstgelegenen aktiven 4H-Level:');
+      nearest.forEach(l => lines.push(`   • ${l.type === 'demand' ? 'Demand' : 'Supply'} bei ${l.price.toFixed(1)} (${Math.abs(l.price - lastClose).toFixed(1)} Pkt entfernt)`));
+    }
   }
 
   return lines.join('\n');

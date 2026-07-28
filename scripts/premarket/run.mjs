@@ -6,12 +6,11 @@ import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture
 import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
-import { berlinTimeString, getBerlinTime } from './utils.mjs';
-import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawMarketShiftMarker } from './draw.mjs';
+import { berlinTimeString, getBerlinHour } from './utils.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
-
-const MARKET_SHIFT_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift.json';
+import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
@@ -261,36 +260,12 @@ async function main() {
   // "confirmed" on the same underlying move, simply because more 1H swings
   // had had the chance to form in the same wall-clock time. The user's own
   // hunch ("ich glaube, dass der 1h chart besser geeignet ist") checked out.
-  const htfMs = lib.detectMarketShift(bars1h, 2);
-  const ltfMs = bars5.length >= 20 ? lib.detectMarketShift(bars5, 2) : { status: 'none' };
-
-  // --- Market Shift Telegram Alerts (5min potential + confirmed) with Dedup ---
-  const MS_ALERTS_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift_alerts.json';
-  const msAlertsState = existsSync(MS_ALERTS_STATE_PATH) ? JSON.parse(readFileSync(MS_ALERTS_STATE_PATH, 'utf8')) : { ltf: { confirmed: null, potential: null } };
-  const msAlerts = [];
-  const MS_ALERT_COOLDOWN_SEC = 3600; // 1 hour — no duplicate alerts within an hour
-
-  if (ltfMs.status === 'confirmed') {
-    const lastConfirmedTime = msAlertsState.ltf?.confirmed || 0;
-    if (nowSec - lastConfirmedTime >= MS_ALERT_COOLDOWN_SEC) {
-      const dirEmoji = ltfMs.direction === 'bullish' ? '📈' : '📉';
-      const levelStr = typeof ltfMs.brokenLevel === 'number' ? ltfMs.brokenLevel.toFixed(1) : 'N/A';
-      msAlerts.push(`✅ BESTÄTIGTER MS (5m)\n${dirEmoji} ${ltfMs.direction === 'bullish' ? 'Bullisch' : 'Bärisch'}\nLevel: ${levelStr}\n🕐 ${berlinTimeString()}`);
-      msAlertsState.ltf.confirmed = nowSec;
-    }
-  } else if (ltfMs.status === 'potential') {
-    const lastPotentialTime = msAlertsState.ltf?.potential || 0;
-    if (nowSec - lastPotentialTime >= MS_ALERT_COOLDOWN_SEC) {
-      const dirEmoji = ltfMs.direction === 'bullish' ? '📈' : '📉';
-      const levelStr = typeof ltfMs.level === 'number' ? ltfMs.level.toFixed(1) : 'N/A';
-      msAlerts.push(`🔹 POTENZIELLER MS (5m)\n${dirEmoji} ${ltfMs.direction === 'bullish' ? 'Bullisch' : 'Bärisch'}\nLevel: ${levelStr}\n⏳ Wartet auf Bestätigung\n🕐 ${berlinTimeString()}`);
-      msAlertsState.ltf.potential = nowSec;
-    }
-  }
-
-  // Save updated MS alert dedup state
-  mkdirSync('/Users/boogy/tradingview-mcp/state', { recursive: true });
-  writeFileSync(MS_ALERTS_STATE_PATH, JSON.stringify(msAlertsState, null, 2));
+  // Detection + Telegram alerting + chart-marker drawing all live in
+  // ms_alerts.mjs now, shared with check_ms.mjs's frequent standalone check
+  // (every ~10min via its own launchd job) — see that file for why alerts
+  // moved off a time-based cooldown onto signature-based dedup, and why 1H/4H
+  // alerting was added alongside the pre-existing 5min-only path.
+  const { ltfMs, htfMs } = await checkAndAlertMarketShifts({ bars5, bars1h, bars4h });
 
   // --- section 9: invalidation/mitigation pass on tracked state ---
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
@@ -588,7 +563,7 @@ async function main() {
   // except the morning run always keeps the nearest one on each side alive
   // even if stale, so the briefing never loses all directional context.
   const SR_MAX_AGE_SEC = 90 * 24 * 3600;
-  const isMorningRun = getBerlinTime().getHours() < 15;
+  const isMorningRun = getBerlinHour() < 15;
   const srFlipActive = zonesState.filter(e => e.status === 'active' && (e.type === 'sr_flip_support' || e.type === 'sr_flip_resistance'));
   const srAbove = srFlipActive.filter(e => e.price_low > lastClose).sort((a, b) => a.price_low - b.price_low);
   const srBelow = srFlipActive.filter(e => e.price_low <= lastClose).sort((a, b) => b.price_low - a.price_low);
@@ -761,36 +736,8 @@ async function main() {
     dataWarnings.push(`Chart-Screenshot fehlgeschlagen: ${e.message}`);
   }
 
-  // --- Market Shift markers (redrawn fresh every run, like the scenario
-  // paths above) — one slot for HTF (1H), one for LTF (5min); each slot's
-  // previous marker(s) are always removed before new ones are drawn (or
-  // left removed if the current status is 'none'), so at most one
-  // vertical + one horizontal shape per timeframe ever exists at once.
-  // vertical_line/horizontal_ray anchor to an absolute time+price on the
-  // symbol's own timeline, so unlike the arrow-based scenario paths above,
-  // no resolution switch is needed for correct placement.
-  try {
-    const prevIds = existsSync(MARKET_SHIFT_STATE_PATH)
-      ? JSON.parse(readFileSync(MARKET_SHIFT_STATE_PATH, 'utf8'))
-      : { htf: {}, ltf: {} };
-    const htfIds = await drawMarketShiftMarker(htfMs, '1H', prevIds.htf);
-    const ltfIds = await drawMarketShiftMarker(ltfMs, '5m', prevIds.ltf);
-    writeFileSync(MARKET_SHIFT_STATE_PATH, JSON.stringify({ htf: htfIds, ltf: ltfIds }));
-  } catch (e) {
-    dataWarnings.push(`Market-Shift-Marker fehlgeschlagen: ${e.message}`);
-  }
-
-  // --- Market Shift Telegram Alerts (sent separately, before briefing) ---
-  let msTelegramResults = [];
-  for (const msAlert of msAlerts) {
-    try {
-      const msResult = await sendTelegramBriefing(msAlert);
-      msTelegramResults.push({ sent: msResult.sent, status: msResult.status });
-    } catch (e) {
-      msTelegramResults.push({ sent: false, error: e.message });
-      dataWarnings.push(`MS-Telegram-Versand fehlgeschlagen: ${e.message}`);
-    }
-  }
+  // MS markers + MS Telegram alerts were already handled up front by
+  // checkAndAlertMarketShifts() (ms_alerts.mjs) — nothing left to do here.
 
   // telegram.mjs's own functions already catch their internal errors and
   // return {sent: false, ...} rather than throwing, but wrapping the calls
