@@ -3467,7 +3467,9 @@
     "price_low": 25381.8,
     "created_at": "2026-07-29T08:30:14.389Z",
     "created_bar_time": 1785312900,
-    "status": "active"
+    "status": "removed",
+    "removed_at": "2026-07-29T09:58:55.566Z",
+    "removed_reason": "fvg_mitigated_50pct"
   },
   {
     "id": "pdh_0_20260729_25555",

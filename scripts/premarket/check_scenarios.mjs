@@ -23,6 +23,12 @@
  * lines removed within ~15 min — user-specified, 28.07.2026: "lösche immer
  * alle eingezeichneten Entries, wenn sie nicht mehr valide sind". Waiting
  * for the next twice-daily run.mjs would leave stale lines up for hours.
+ *
+ * Also removes mitigated FVG rectangles (fill >= 50%) within the same ~15
+ * min cadence — user-specified, 29.07.2026: a mitigated FVG should disappear
+ * "in dem Moment, wo sie 50% durchbrochen wurde", not wait for the next
+ * twice-daily run.mjs. Same removed-vs-still-there bookkeeping as run.mjs
+ * (wasActuallyRemoved, draw.mjs), scoped to just FVG entries to stay cheap.
  */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { disconnect } from '../../src/connection.js';
@@ -31,7 +37,7 @@ import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { buildScenarios } from './briefing.mjs';
 import { checkAndAlertFullConfluence } from './scenario_alerts.mjs';
-import { drawScenarioLevels } from './draw.mjs';
+import { drawScenarioLevels, remove, wasActuallyRemoved } from './draw.mjs';
 
 const SCENARIO_LINES_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_lines.json';
 
@@ -104,6 +110,32 @@ async function main() {
     .filter(e => e.status === 'active' && e.timeframe === 720 && (e.type === 'sd_level_demand' || e.type === 'sd_level_supply'))
     .map(e => ({ type: e.type === 'sd_level_demand' ? 'demand' : 'supply', price: e.price_low }));
 
+  // User-specified, 29.07.2026: a mitigated FVG (fill >= 50%) should
+  // disappear "in dem Moment, wo sie 50% durchbrochen wurde" — the only
+  // place that removed mitigated FVG rectangles before this was run.mjs's
+  // full invalidation pass (twice daily, 09:20/22:00), so a tactical FVG
+  // crossing 50% mid-session could sit stale on the chart for up to ~13h.
+  // Same lightweight-frequent-cleanup pattern already used for scenario
+  // lines above (`isScenarioResolved`) — reuses `state.isInvalidated()`'s
+  // existing FVG branch rather than reimplementing the fill-fraction math,
+  // scoped to just active fvg_bullish/fvg_bearish entries so this stays
+  // cheap at the 15-min cadence (no full S/D/OB invalidation sweep here —
+  // that stays twice-daily via run.mjs).
+  const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
+  let fvgsMitigated = 0;
+  for (const entry of zonesState) {
+    if (entry.status !== 'active' || (entry.type !== 'fvg_bullish' && entry.type !== 'fvg_bearish')) continue;
+    if (!state.isInvalidated(entry, barsByTf)) continue;
+    const r = await remove(entry.tv_entity_id);
+    if (wasActuallyRemoved(r)) {
+      entry.status = 'removed';
+      entry.removed_at = new Date().toISOString();
+      entry.removed_reason = 'fvg_mitigated_50pct';
+      fvgsMitigated++;
+    }
+  }
+  if (fvgsMitigated) state.writeState(zonesState);
+
   const tacticalAtrArr = lib.atr(tacticalBars, 14);
   const tacticalAtr = tacticalAtrArr[tacticalAtrArr.length - 1];
   const { minutesOfDay } = lib.berlinDateTimeParts(nowSec);
@@ -128,6 +160,7 @@ async function main() {
     alertsSent: result.alertsSent,
     telegramResults: result.telegramResults,
     scenarios: scenarios.map(s => ({ type: s.type, direction: s.direction, metCount: s.metCount, totalCount: s.totalCount, probability: s.probability })),
+    fvgsMitigated,
   }));
 }
 

@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 2026-07-29, Teil 9 (4H-Level-Self-Dedupe type-agnostic gefixt + TradingView-Neustart-Eskalation auf SIGKILL)
+**Stand:** 2026-07-29, Teil 10 (Mitigierte FVGs verschwinden jetzt binnen ~15 Min statt bis zu ~13h)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)
 **Status:** ✅ Produktiv (`launchd`). Zwei aktive, backtestete Strategien: **B** (Fresh-Zone-Fade, 71,4% WR/+0,43R, 6 Monate validiert) und **A** (Trend-Reversal an POI, 34,9% WR/+0,13R, ~2 Monate validiert — kleinere Stichprobe, moderat statt stark). D bleibt technisch aktiv, feuert aber praktisch nie. Briefing referenziert zusätzlich die User-eigenen ORB/VWAP-Indikatoren (Teil 7).
 
@@ -641,6 +641,56 @@ TradingView`-Check — läuft der Prozess noch, folgt `pkill -9 -f TradingView`
 Änderung nötig dort. Lint 0 Fehler, Unit-Suite weiterhin 141/141 grün
 (`tests/launch.test.js` deckt nur den win32/MSIX-Pfad ab und ist auf macOS
 ohnehin geskippt — unberührt von dieser Änderung).
+
+---
+
+## 🐛 Session-Log 29.07.2026, Teil 10 — Mitigierte FVGs blieben bis zu ~13h auf dem Chart
+
+**Auslöser:** User meldete eine durchbrochene bärische FVG, die bereits
+mitigiert war, aber weiterhin auf dem Chart stand — Wunsch: sie soll
+verschwinden "in dem Moment, wo sie 50% durchbrochen wurde". User lieferte
+zusätzlich eine vollständige Filter-Spezifikation für "relevante FVGs"
+(Timeframe-Scope, Mindestgröße, Impuls-Kerze, 50%-Mitigation-Schwelle,
+HTF-Bias-Kongruenz).
+
+**Root Cause gefunden (live diagnostiziert):** Die 50%-Mitigation-Logik
+selbst existierte bereits korrekt (`fvgFillFraction()` in `lib.mjs`,
+verwendet über `state.isInvalidated()`s FVG-Zweig: `frac >= 0.5` → entfernen)
+— das war NICHT der Bug. Der eigentliche Bug war die **Taktung**:
+`check_scenarios.mjs` (alle 15 Min) berechnete zwar bereits frische FVG-Fill-
+Fractions für den Szenario-Aufbau, glich sie aber nie gegen die bereits
+gezeichneten FVG-Rechtecke im State ab. Die einzige Stelle, die mitigierte
+FVG-Rechtecke tatsächlich entfernte, war `run.mjs`s volle Invalidierungs-
+Runde — die aber nur zweimal täglich läuft (09:20/22:00). Eine taktische FVG,
+die untertags über 50% Fill kreuzt, konnte dadurch bis zu ~13h veraltet auf
+dem Chart stehenbleiben, bevor sie beim nächsten Voll-Lauf entfernt wurde.
+
+**Fix:**
+1. Neuer, leichter Cleanup-Durchlauf in `check_scenarios.mjs`: scannt bei
+   jedem 15-Min-Lauf alle aktiven `fvg_bullish`/`fvg_bearish`-State-Einträge,
+   ruft dafür `state.isInvalidated()` (dieselbe Funktion, kein Reimplement)
+   auf, entfernt was die 50%-Schwelle überschritten hat. Bewusst NUR auf
+   FVG-Einträge beschränkt (keine volle S/D/OB-Invalidierungs-Runde), damit
+   der 15-Min-Takt günstig bleibt.
+2. `wasActuallyRemoved()` (die "wirklich entfernt vs. nur versucht"-
+   Unterscheidung aus dem Teil-8-Orphan-Fix) von `run.mjs` nach `draw.mjs`
+   verschoben und exportiert — jetzt von `run.mjs` UND `check_scenarios.mjs`
+   geteilt statt dupliziert.
+
+**Live verifiziert** (29.07.2026, direkt nach dem Fix manuell getriggert):
+`check_scenarios.mjs`-Lauf meldete `fvgsMitigated: 1` — die vom User
+gemeldete FVG wurde sofort entfernt, ohne auf den nächsten Voll-Lauf zu
+warten.
+
+**Zur User-Filter-Spezifikation eingeordnet:** Timeframe-Scope, Mindestgröße
+und Impuls-Kerze werden bereits in `findFVGs()` durchgesetzt; die 50%-
+Schwelle existierte bereits, nur Docht-basiert (`b.high`/`b.low`) statt
+Close-basiert — das ist mindestens so aggressiv wie eine Close-Prüfung (löst
+nie später aus als diese), daher keine Änderung nötig. 5-Minuten-FVGs als
+eigene Kategorie fehlen aktuell (nur 15min/1H taktisch + 4H/12H) — User
+bestätigte, das wird nicht gebraucht, keine Änderung vorgenommen.
+
+**Verifiziert:** Lint 0 Fehler, Unit-Suite 141/141 grün.
 
 ---
 

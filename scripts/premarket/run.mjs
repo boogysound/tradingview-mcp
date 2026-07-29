@@ -6,7 +6,7 @@ import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { getBerlinHour, fetchBars, sleep, readOrbVwap } from './utils.mjs';
-import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioLevels } from './draw.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioLevels, wasActuallyRemoved } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
 import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
@@ -296,12 +296,9 @@ async function main() {
   // entirely, leaving the shape stranded on the chart forever with no
   // tracking left to ever clean it up. Found live: 14 such orphans (9 S/D-
   // level rays, 3 zone/FVG rectangles, 2 PDH/PDL lines) — see cleanup script
-  // referenced in the handover, Teil 8.
-  function wasActuallyRemoved(r) {
-    if (r?.removed === true) return true;
-    if (r?.ok === false && /not found/i.test(r.error || '')) return true; // already gone — nothing to orphan
-    return false;
-  }
+  // referenced in the handover, Teil 8. Moved to draw.mjs (Teil 9) so
+  // check_scenarios.mjs's frequent FVG-mitigation check can share the exact
+  // same removed-vs-still-there distinction.
 
   // Moved up from its original spot further down (after the S/R drawing loop)
   // so blocks that run earlier in this section — breach/level conversion to

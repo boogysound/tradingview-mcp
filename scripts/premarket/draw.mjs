@@ -61,6 +61,21 @@ export async function remove(entity_id) {
   catch (e) { return { ok: false, error: e.message }; }
 }
 
+// Distinguishes "shape was already gone" (harmless — nothing to orphan) from
+// a genuine removal failure (CDP call ran but the shape is still there, e.g.
+// a transient timing hiccup) — treating both as success is what caused the
+// chart-orphan bug (handover, Teil 8): a failed-but-still-present shape got
+// marked removed anyway, and once its state entry aged out, the shape was
+// stranded on the chart forever with nothing left to retry it. Shared by any
+// caller that removes a tracked shape (run.mjs's full pass, check_scenarios.
+// mjs's frequent FVG-mitigation check) so they can't drift out of sync on
+// this distinction.
+export function wasActuallyRemoved(r) {
+  if (r?.removed === true) return true;
+  if (r?.ok === false && /not found/i.test(r.error || '')) return true; // already gone — nothing to orphan
+  return false;
+}
+
 export const COLORS = {
   sd_zone_12h: '#800080',
   sd_zone_4h: '#FFA500',
