@@ -97,108 +97,13 @@ export const COLORS = {
 };
 
 
-// Draws (at most) ONE Market-Shift marker pair — a horizontal level line
-// plus a short vertical connector — for a given timeframe label. Both are
-// plain white now (09.07.2026: previously direction-colored; the user
-// wants both lines white). `ms` is the result of lib.detectMarketShift:
-// status 'none' draws nothing (any previous markers for this slot are
-// simply removed, not replaced — an unconfirmed potential that got
-// invalidated disappears rather than lingering).
-//
-// HORIZONTAL line at `ms.brokenLevel` — the ORIGINAL protective high/low
-// that actually got violated to trigger the shift (e.g. "das letzte HL vor
-// dem aktuellen HH", not the fresh new extreme that formed afterward) —
-// always drawn left-to-right from that point's own time up to "now"
-// (`ms.now`, growing on every redraw as time passes), never projected into
-// the future. Same line, same level, throughout: dotted while 'potential',
-// solid with a "Bestätigter MS" label once 'confirmed'.
-//
-// VERTICAL connector — NOT an infinite ray (09.07.2026: "bitte keinen
-// vertikalen Strahl, sondern nur von Schnittpunkt zu Kerze") — a short
-// bounded segment at break_time, from where it crosses the horizontal line
-// (`ms.brokenLevel.price`) up/down to the actual triggering/confirming
-// candle's own price (`ms.candlePrice`). Same dotted/solid styling as the
-// horizontal line, in lockstep with potential vs. confirmed.
-//
-// Always removes BOTH previous markers for this slot first, so at most one
-// vertical + one horizontal shape per timeframe ever exists at once,
-// matching the user's "immer nur ein MS ... eingezeichnet" requirement.
-export async function drawMarketShiftMarker(ms, timeframeLabel, prevIds = {}) {
-  // Delete old MS and draw new one if status changed or new MS appeared
-  if (prevIds.vline || prevIds.hline) {
-    const removed = [];
-    if (prevIds.vline) {
-      await remove(prevIds.vline).catch(() => {});
-      removed.push('vline');
-    }
-    if (prevIds.hline) {
-      await remove(prevIds.hline).catch(() => {});
-      removed.push('hline');
-    }
-    // Log the removal
-    if (ms && ms.status !== 'none') {
-      console.log(`✂️ Old MS removed (${timeframeLabel}): ${removed.join(', ')} → drawing new ${ms.status} MS`);
-    } else {
-      console.log(`✂️ MS cleared (${timeframeLabel}): ${removed.join(', ')}`);
-    }
-  }
-  if (!ms || ms.status === 'none') return { vline: null, hline: null };
-
-  const isConfirmed = ms.status === 'confirmed';
-  const arrow = ms.direction === 'bearish' ? '↓' : '↑';
-  const lineStyle = { linecolor: '#FFFFFF', textcolor: '#FFFFFF', linewidth: 1, linestyle: isConfirmed ? 0 : 2 };
-
-  // Draw horizontal line (confirmation level for potential, broken level for confirmed)
-  let hline = null;
-  if (ms.now) {
-    let hlabelText = '';
-    let linePrice = null;
-    let lineStartTime = null;
-
-    if (isConfirmed && ms.brokenLevel) {
-      // Confirmed: show broken level (the old high/low that was broken)
-      hlabelText = 'Bestätigter MS';
-      linePrice = ms.brokenLevel.price;
-      lineStartTime = ms.brokenLevel.time;
-    } else if (ms.status === 'potential' && ms.level) {
-      // Potential: show confirmation expectation (HL/LH level where breakout is expected)
-      const confirmType = ms.direction === 'bullish' ? 'HL' : 'LH';
-      hlabelText = `Durchbruch über ${confirmType} ${ms.level.toFixed(1)} erwartet`;
-      linePrice = ms.level;
-      lineStartTime = ms.break_time;
-    }
-
-    if (linePrice !== null && lineStartTime) {
-      const r = await draw('trend_line',
-        { time: lineStartTime, price: linePrice },
-        { time: ms.now, price: linePrice },
-        lineStyle, hlabelText);
-      hline = r.ok ? r.entity_id : null;
-    }
-  }
-
-  // Draw vertical line ONLY for confirmed MS
-  let vline = null;
-  if (isConfirmed && ms.brokenLevel && ms.candlePrice != null) {
-    const text = `Bestätigter MS (${timeframeLabel}, ${arrow})`;
-    const r2 = await draw('trend_line',
-      { time: ms.break_time, price: ms.brokenLevel.price },
-      { time: ms.break_time, price: ms.candlePrice },
-      lineStyle, text);
-    vline = r2.ok ? r2.entity_id : null;
-  }
-
-  return { vline, hline };
-}
-
 // Draws recommended Entry/SL/TP for the currently active scenario(s) — user-
 // requested, 28.07.2026. One slot per scenario TYPE (counter_trend='b',
-// consolidation_breakout='d'), same remove-then-redraw pattern as
-// drawMarketShiftMarker: previous lines for a slot are always removed first,
-// so a scenario that's no longer active (or moved to a different zone)
-// doesn't leave stale levels behind, and re-running never accumulates
-// duplicates. `lastBarTime` anchors the line's start so it draws as a ray
-// from "now" rather than the full chart history.
+// consolidation_breakout='d'), remove-then-redraw: previous lines for a slot
+// are always removed first, so a scenario that's no longer active (or moved
+// to a different zone) doesn't leave stale levels behind, and re-running
+// never accumulates duplicates. `lastBarTime` anchors the line's start so it
+// draws as a ray from "now" rather than the full chart history.
 const SCENARIO_LINE_SLOTS = { trend_reversal_poi: 'a', counter_trend: 'b', consolidation_breakout: 'd' };
 
 export async function drawScenarioLevels(scenarios, lastBarTime, prevIds = {}) {

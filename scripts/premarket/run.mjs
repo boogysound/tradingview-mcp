@@ -9,8 +9,8 @@ import { getBerlinHour, fetchBars, sleep, readOrbVwap } from './utils.mjs';
 import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioLevels, wasActuallyRemoved } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
-import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
-import { checkAndAlertFullConfluence } from './scenario_alerts.mjs';
+import { checkAndAlertTrendResumptionMS } from './ms_alerts.mjs';
+import { checkAndAlertScenarioEntries } from './scenario_alerts.mjs';
 
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
 
@@ -74,6 +74,11 @@ async function main() {
 
   let dailyBars = null;
   try { dailyBars = await fetchBars('D', 60); } catch (e) { dataWarnings.push(`Daily-Bars für Overnight-Gap nicht verfügbar: ${e.message}`); }
+
+  // LTF for the Trend-Resumption-MS alert (Teil 11) — fetched last since
+  // nothing else needs the chart to stay on 1min afterward.
+  let bars1 = [];
+  try { bars1 = await fetchBars(1, 500); } catch (e) { dataWarnings.push(`1min-Bars für MS-Alert nicht verfügbar: ${e.message}`); }
 
   await setTimeframe({ timeframe: original.resolution });
   // Drawing shapes too soon after a timeframe switch can snap the anchor to a
@@ -258,25 +263,21 @@ async function main() {
   // uptrend), which is itself useful information, not a contradiction.
   const shortTermBias = lib.computeLastNBias(tacticalBars, 3);
 
-  // --- Market Shift (MS) detection — HTF (1H) and LTF (5min), independently ---
-  // User-specified, 09.07.2026: only potential/confirmed MS markers now (the
-  // earlier HH/HL/LH/LL swing labels and entry markers are removed
-  // entirely — "mir gefällt das Ergebnis nicht... zeige mir nur potenzielle
-  // Marketshifts und bestätigte Marketshifts an"). See detectMarketShift in
-  // lib.mjs for the exact potential/confirmed/invalidated state machine.
-  //
-  // HTF is 1H, not 4H: checked live against real data (09.07.2026) — 4H was
-  // still stuck at "potential" (the low had broken, but no 4H high had yet
-  // formed to confirm or deny it) while 1H had ALREADY resolved to
-  // "confirmed" on the same underlying move, simply because more 1H swings
-  // had had the chance to form in the same wall-clock time. The user's own
-  // hunch ("ich glaube, dass der 1h chart besser geeignet ist") checked out.
-  // Detection + Telegram alerting + chart-marker drawing all live in
-  // ms_alerts.mjs now, shared with check_ms.mjs's frequent standalone check
-  // (every ~10min via its own launchd job) — see that file for why alerts
-  // moved off a time-based cooldown onto signature-based dedup, and why 1H/4H
-  // alerting was added alongside the pre-existing 5min-only path.
-  const { htfMs } = await checkAndAlertMarketShifts({ bars5, bars1h, bars4h });
+  // --- Market Shift (MS) detection ---
+  // htfMs (1H) is a separate, pre-existing input to buildScenarios() below
+  // (Scenario B's "1H-MS bestätigt intakten Trend" confluence check) —
+  // unrelated to the Telegram MS alert redesigned in Teil 11, kept exactly
+  // as before so that confluence check doesn't change behavior.
+  const htfMs = bars1h && bars1h.length >= 20 ? lib.detectMarketShift(bars1h, 2) : { status: 'none' };
+
+  // Trend-Resumption-MS Telegram alert (Teil 11, 29.07.2026, user-specified):
+  // HTF reference moved off 4H (choppy, no clear trend for weeks) to a
+  // dynamic pick between 15min/1H; LTF moved from 5min to 1min; only alerts
+  // when the LTF shift resumes the HTF trend after a counter-trend move; no
+  // more chart markers, Telegram only. See ms_alerts.mjs for the full
+  // rationale. Shared with check_ms.mjs's frequent standalone check (every
+  // ~10min via its own launchd job).
+  await checkAndAlertTrendResumptionMS({ bars15, bars1h, bars1 });
 
   // --- section 9: invalidation/mitigation pass on tracked state ---
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
@@ -718,10 +719,12 @@ async function main() {
     s.type !== 'momentum_continuation' || (momAligned && momMorning)
   );
 
-  // Full-confluence alert (shares dedup state with check_scenarios.mjs's
+  // Scenario-entry alert — every scenario with a drawable Entry, not just
+  // full confluence (Teil 12). Shares dedup state with check_scenarios.mjs's
   // frequent standalone check, so the two never double-alert the same
-  // confluence moment — same pattern as checkAndAlertMarketShifts above).
-  const scenarioAlertResult = await checkAndAlertFullConfluence(scenarios);
+  // confluence moment — same signature-dedup pattern as
+  // checkAndAlertTrendResumptionMS above.
+  const scenarioAlertResult = await checkAndAlertScenarioEntries(scenarios);
 
   // --- Recommended Entry/SL/TP lines (user-requested, 28.07.2026) ---
   // Same remove-then-redraw pattern as MS markers: previous lines are always
@@ -833,8 +836,9 @@ async function main() {
     dataWarnings.push(`Chart-Screenshot fehlgeschlagen: ${e.message}`);
   }
 
-  // MS markers + MS Telegram alerts were already handled up front by
-  // checkAndAlertMarketShifts() (ms_alerts.mjs) — nothing left to do here.
+  // MS Telegram alert was already handled up front by
+  // checkAndAlertTrendResumptionMS() (ms_alerts.mjs) — nothing left to do
+  // here (no chart markers anymore, Teil 11).
 
   // telegram.mjs's own functions already catch their internal errors and
   // return {sent: false, ...} rather than throwing, but wrapping the calls

@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 2026-07-29, Teil 10 (Mitigierte FVGs verschwinden jetzt binnen ~15 Min statt bis zu ~13h)
+**Stand:** 2026-07-29, Teil 12 (Telegram-Alert jetzt für JEDEN potenziellen Entry, nicht nur bei voller Confluence)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)
 **Status:** ✅ Produktiv (`launchd`). Zwei aktive, backtestete Strategien: **B** (Fresh-Zone-Fade, 71,4% WR/+0,43R, 6 Monate validiert) und **A** (Trend-Reversal an POI, 34,9% WR/+0,13R, ~2 Monate validiert — kleinere Stichprobe, moderat statt stark). D bleibt technisch aktiv, feuert aber praktisch nie. Briefing referenziert zusätzlich die User-eigenen ORB/VWAP-Indikatoren (Teil 7).
 
@@ -691,6 +691,123 @@ eigene Kategorie fehlen aktuell (nur 15min/1H taktisch + 4H/12H) — User
 bestätigte, das wird nicht gebraucht, keine Änderung vorgenommen.
 
 **Verifiziert:** Lint 0 Fehler, Unit-Suite 141/141 grün.
+
+---
+
+## 🎯 Session-Log 29.07.2026, Teil 11 — Market-Shift-Alert komplett neu konzipiert
+
+**Auslöser:** User: "Hier kann man einiges besser machen" — das bisherige
+Design (LTF=5min, HTF=1H, Alert bei JEDEM MS unabhängig von Richtung, plus
+Chart-Marker) passte nicht mehr zur aktuellen Marktlage: 4H/12H sehen seit
+Wochen choppy aus ohne klaren Trend, 15min/1H sind aktuell die aussagekräftigeren
+Timeframes. Zusätzlich sollte ein LTF-MS nur noch relevant sein, wenn er eine
+Rückkehr in die HTF-Trendrichtung nach einer Gegentrend-Bewegung markiert —
+nicht jeder beliebige MS. Und: keine Chart-Marker mehr, ausschließlich Telegram.
+
+**Vier Design-Entscheidungen mit dem User geklärt (AskUserQuestion), bevor
+Code geschrieben wurde** — architektonische Weichenstellungen, keine reine
+Textänderung:
+1. **HTF-Referenz:** dynamisch — 15min ODER 1H, je nachdem welcher frischer
+   (= klarer) ist. Konkret umgesetzt: `findBosEvents()` auf beiden
+   Timeframes, das mit dem zeitlich jüngeren letzten BOS gewinnt (gleiche
+   "wer hatte mehr Zeit sich zu bestätigen"-Logik wie schon beim
+   ursprünglichen 1H-vs-4H-Entscheid, Teil 1).
+2. **LTF-Referenz:** 1min (statt bisher 5min) für schnellere Reaktion.
+3. **Ersetzen statt zusätzlich:** komplett neues System statt einer dritten
+   Variante daneben.
+4. **Counter-Trend-Filter:** die einfache Variante — reduziert sich auf
+   `ltfMs.direction === htfBias`, da `detectMarketShift()` per Definition nur
+   dann `potential`/`confirmed` meldet, wenn die vorherige Richtung das
+   Gegenteil von `direction` war. Kein separates Gegentrend-Lookback nötig.
+
+**Implementiert:**
+1. `ms_alerts.mjs` komplett neu geschrieben: `pickHtfBias(bars15, bars1h)`
+   (Freshness-Tiebreak) + `checkAndAlertTrendResumptionMS({bars15, bars1h,
+   bars1})` ersetzt `checkAndAlertMarketShifts()`. Neue, kurze Nachrichten
+   exakt nach User-Vorgabe:
+   - Potenziell: `Potenzieller MS: HTF ↓; erwartet LTF MS bei [Kurswert]`
+   - Bestätigt: `Bestätigter MS: HTF ↓; LTF ebenfalls bärisch bestätigt.`
+   Dedup weiterhin signatur-basiert (nicht zeitbasiert), jetzt ein einzelner
+   `lastSig`-Schlüssel statt drei Slots (ltf/htf/htf4h).
+2. **Keine Chart-Marker mehr** (User: "ich brauche keine MS mehr im Chart
+   eingezeichnet... ausschließlich Telegram"): `drawMarketShiftMarker()`
+   komplett aus `draw.mjs` entfernt. Die 4 noch aktiven alten MS-Marker-
+   Shapes (ltf-hline, htf-vline+hline, htf4h-hline) live vom Chart entfernt,
+   `state/market_shift.json` (die zugehörige Tracking-Datei) gelöscht — wird
+   von nichts mehr geschrieben.
+3. `check_ms.mjs` (10-Min-Job) und `run.mjs` (Voll-Lauf) holen jetzt
+   `bars1`/`bars15`/`bars1h` statt `bars5`/`bars1h`/`bars4h` für diesen
+   Zweck. **Wichtig:** `htfMs` (1H-`detectMarketShift`) ist ein SEPARATER,
+   bereits bestehender Input für Szenario B's Confluence-Check ("1H-MS
+   bestätigt intakten Trend", `briefing.mjs`) — unverändert gelassen, in
+   `run.mjs` jetzt eigenständig berechnet statt als Nebenprodukt des alten
+   Alert-Aufrufs.
+4. `wasActuallyRemoved()` von `run.mjs` nach `draw.mjs` verschoben (bereits
+   in Teil 10 begonnenes Muster), da die MS-Marker-Cleanup diesen Helper
+   ebenfalls kurz brauchte.
+
+**Live verifiziert (29.07.2026, ungewöhnlich direkt):** Der planmäßige
+`check_ms.mjs`-Cronjob (alle 10 Min) griff automatisch auf den neuen Code
+zu, WÄHREND an diesem Fix noch gearbeitet wurde, und verschickte bereits
+`{"alertsSent":1,"htfBias":"bullish","htfSource":"1H",...}` — eine echte
+"Bestätigter MS: HTF ↑; LTF ebenfalls bullisch bestätigt."-Nachricht ging
+raus. Ein direkt danach manuell getriggerter Lauf dedupte korrekt (gleiche
+Signatur bereits gemeldet) → `alertsSent:0`. Keine neuen Chart-Marker in
+diesem Lauf (kein "✂️ Old MS removed"-Log mehr).
+
+**Nebenbefund:** Zwei unversionierte Scratch-Skripte
+(`scripts/aggressive_ms_cleanup.mjs`, `scripts/cleanup_and_redraw_ms.mjs`,
+bereits vorher als fragwürdig markiert, nie committed) importieren das jetzt
+entfernte `drawMarketShiftMarker` und sind dadurch kaputt — betrifft keinen
+launchd-Job oder committeten Code, daher keine Änderung vorgenommen.
+
+**Verifiziert:** Lint 0 Fehler (1 vorbestehende, unabhängige Warnung in
+`lib.mjs` zu ungenutztem `isEngulfingCandle`), Unit-Suite 141/141 grün.
+
+---
+
+## 🎯 Session-Log 29.07.2026, Teil 12 — Telegram-Alert für JEDEN potenziellen Entry
+
+**Auslöser:** User sah einen Entry auf dem Chart, aber es kam keine Telegram-
+Nachricht mit einer Begründung dazu. Frage geklärt, dann Wunsch geäußert:
+"ich möchte, dass ich immer potenzielle Entries auf Telegram erhalte".
+
+**Root Cause (Erklärung, kein Bug):** Chart-Zeichnung und Telegram-Alert
+liefen über zwei komplett unabhängige Gates. `drawScenarioLevels()`
+(`draw.mjs`) zeichnet die Entry/SL/TP-Linien für JEDES Szenario mit einem
+berechneten Target — unabhängig vom Confluence-Stand. `checkAndAlertFullConfluence()`
+(`scenario_alerts.mjs`) hatte dagegen eine harte Bedingung
+`if (s.metCount < s.totalCount) continue;` — Telegram kam ausschließlich bei
+5/5 ("alle Signale grün"). Ein Szenario bei z.B. 2/5 oder 4/5 bekam also
+einen Chart-Entry, aber nie eine Nachricht dazu.
+
+**Fix (`scenario_alerts.mjs`):**
+1. Funktion umbenannt: `checkAndAlertFullConfluence` → `checkAndAlertScenarioEntries`.
+2. Gate geändert von `metCount < totalCount` auf `targets[0] == null` —
+   exakt dieselbe Bedingung, die `drawScenarioLevels()` selbst benutzt, um zu
+   entscheiden ob überhaupt Chart-Linien gezeichnet werden. Chart und
+   Telegram sind damit strukturell in Lockstep, nicht nur zufällig meistens
+   gleich.
+3. Nachrichten-Header abhängig vom Confluence-Stand: weiterhin
+   "🟢🟢 ALLE SIGNALE ERFÜLLT 🟢🟢" bei 5/5, sonst neu
+   "🔹 POTENZIELLER ENTRY (metCount/totalCount)" — Rest der Nachricht (Zone,
+   Stopp, Ziel, Confluence-Checkliste mit 🟢/🔴 pro Punkt, Rating) unverändert
+   über die bereits bestehende `describeScenario()` wiederverwendet.
+4. Signatur-Dedup (`type|direction|zonePrice|metCount/totalCount`)
+   unverändert übernommen — ändert sich der Confluence-Stand (in beide
+   Richtungen), geht eine neue Nachricht mit aktualisierter Checkliste raus;
+   bleibt er gleich, keine Wiederholung. Entspricht "immer potenzielle
+   Entries" als laufendes Update, nicht nur eine einmalige Benachrichtigung.
+5. Aufrufer in `run.mjs` und `check_scenarios.mjs` sowie Kommentare
+   entsprechend angepasst (Funktionsname + Header-Texte).
+
+**Verifiziert:** Lint 0 Fehler, Unit-Suite 141/141 grün. Live-Lauf (`check_scenarios.mjs`)
+direkt danach: `scenarios: []` (aktuell kein aktives Szenario) — kein Crash,
+korrektes Verhalten bei leerer Liste. Der eigentliche Alert-Pfad (Nachricht
+mit neuem Header) konnte mangels aktivem Szenario in diesem Moment nicht
+live am echten Signal verifiziert werden — greift beim nächsten Szenario mit
+berechnetem Target automatisch, gleicher Code-Pfad wie der bereits
+produktiv bewiesene Full-Confluence-Alert.
 
 ---
 

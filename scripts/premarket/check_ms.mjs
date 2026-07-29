@@ -8,14 +8,18 @@
  * cannot deliver that; MS structure can (and does) shift within minutes.
  * Meant to run every ~10 minutes during Xetra hours via its own launchd job
  * (com.boogy.de40-ms-check) — see run.mjs for the equivalent full-run path
- * that reuses the same checkAndAlertMarketShifts() logic.
+ * that reuses the same checkAndAlertTrendResumptionMS() logic.
  *
- * Kept deliberately minimal (no zone/OB/FVG processing, no scenario
- * logging, no screenshot) to stay cheap enough for a 10-minute cadence.
+ * Redesigned 29.07.2026 (Teil 11, user-specified): HTF reference moved off
+ * 4H (choppy, no clear trend for weeks) to a dynamic pick between 15min/1H;
+ * LTF moved from 5min down to 1min. See ms_alerts.mjs for the full design
+ * rationale — kept here in check_ms.mjs, still deliberately minimal (no
+ * zone/OB/FVG processing, no scenario logging, no screenshot) to stay cheap
+ * enough for a 10-minute cadence.
  */
 import { disconnect } from '../../src/connection.js';
 import { ensureTradingViewReady, isXetraOpen, fetchBars } from './utils.mjs';
-import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
+import { checkAndAlertTrendResumptionMS } from './ms_alerts.mjs';
 
 async function main() {
   if (!isXetraOpen()) {
@@ -25,16 +29,16 @@ async function main() {
 
   await ensureTradingViewReady({ onLog: console.log });
 
-  const bars5 = await fetchBars(5, 300);
+  const bars1 = await fetchBars(1, 300);
+  const bars15 = await fetchBars(15, 300);
   const bars1h = await fetchBars(60, 300);
-  const bars4h = await fetchBars(240, 300);
 
-  const result = await checkAndAlertMarketShifts({ bars5, bars1h, bars4h });
+  const result = await checkAndAlertTrendResumptionMS({ bars15, bars1h, bars1 });
   console.log(JSON.stringify({
     alertsSent: result.alertsSent,
+    htfBias: result.htfBias,
+    htfSource: result.htfSource,
     ltf: { status: result.ltfMs.status, direction: result.ltfMs.direction },
-    htf: { status: result.htfMs.status, direction: result.htfMs.direction },
-    htf4h: { status: result.htf4hMs.status, direction: result.htf4hMs.direction },
   }));
 }
 

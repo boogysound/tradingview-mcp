@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * Lightweight, frequent full-confluence ("alle Signale grün") check for
- * Scenario B — separate from the twice-daily full run.mjs (zones/OBs/FVGs/
- * screenshot) and from check_ms.mjs (Market-Shift-only). Reads already-drawn
- * 4H S/D levels from state (no redrawing), fetches fresh bars, rebuilds
- * scenarios via the same buildScenarios() run.mjs uses, then delegates to
- * the shared, signature-deduped alert in scenario_alerts.mjs — same dedup
- * state file run.mjs also writes to, so the two never double-alert the same
- * confluence moment.
+ * Lightweight, frequent scenario-entry check for A/B/D — separate from the
+ * twice-daily full run.mjs (zones/OBs/FVGs/screenshot) and from check_ms.mjs
+ * (Market-Shift-only). Reads already-drawn 4H S/D levels from state (no
+ * redrawing), fetches fresh bars, rebuilds scenarios via the same
+ * buildScenarios() run.mjs uses, then delegates to the shared, signature-
+ * deduped alert in scenario_alerts.mjs — same dedup state file run.mjs also
+ * writes to, so the two never double-alert the same confluence moment.
  *
  * User-specified, 28.07.2026: "wenn... alle Signale auf grün stehen" should
  * arrive as its own message, not only be visible inside the 09:20/22:00
@@ -17,6 +16,12 @@
  * (com.boogy.de40-scenario-check) — slightly less frequent than ms-check's
  * 10 min since this fetches one more timeframe (tactical 15m/1H) plus daily
  * bars for PDHL, and B's confluence doesn't shift as fast as raw MS structure.
+ *
+ * Widened 29.07.2026 (Teil 12, user-specified): "ich möchte, dass ich immer
+ * potenzielle Entries auf Telegram erhalte" — the alert no longer waits for
+ * full confluence; it fires for any scenario with a drawable Entry/SL/TP
+ * (same gate the chart lines use), so an Entry never appears on the chart
+ * without a Telegram message explaining it. See scenario_alerts.mjs.
  *
  * Also redraws the recommended Entry/SL/TP lines (same as run.mjs) so a
  * scenario that's already been resolved by price (SL or TP hit) gets its
@@ -36,7 +41,7 @@ import { ensureTradingViewReady, isXetraOpen, fetchBars } from './utils.mjs';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { buildScenarios } from './briefing.mjs';
-import { checkAndAlertFullConfluence } from './scenario_alerts.mjs';
+import { checkAndAlertScenarioEntries } from './scenario_alerts.mjs';
 import { drawScenarioLevels, remove, wasActuallyRemoved } from './draw.mjs';
 
 const SCENARIO_LINES_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_lines.json';
@@ -149,7 +154,7 @@ async function main() {
     aHtfBias, activeLevels12h, srLevels, fvgs12h, fvgs4h,
   });
 
-  const result = await checkAndAlertFullConfluence(scenarios);
+  const result = await checkAndAlertScenarioEntries(scenarios);
 
   const scenarioLinesState = existsSync(SCENARIO_LINES_STATE_PATH) ? JSON.parse(readFileSync(SCENARIO_LINES_STATE_PATH, 'utf8')) : {};
   const scenariosStillValid = scenarios.filter(s => !lib.isScenarioResolved(s, lastClose));
