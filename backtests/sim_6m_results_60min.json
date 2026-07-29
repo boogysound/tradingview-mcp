@@ -1,0 +1,406 @@
+{
+  "simulatedAt": null,
+  "window": {
+    "from": "2026-01-05",
+    "to": "2026-07-08"
+  },
+  "tradingDays": 130,
+  "simSteps": 1258,
+  "scenariosLogged": 633,
+  "overall": {
+    "total": 633,
+    "wins": 310,
+    "losses": 260,
+    "expired": 16,
+    "not_triggered": 43,
+    "open": 4,
+    "winRate": 54.4,
+    "expR": 0.6,
+    "avgWinRR": 1.94
+  },
+  "byType": {
+    "counter_trend": {
+      "total": 284,
+      "wins": 202,
+      "losses": 54,
+      "expired": 0,
+      "not_triggered": 25,
+      "open": 3,
+      "winRate": 78.9,
+      "expR": 1.37,
+      "avgWinRR": 2
+    },
+    "momentum_continuation": {
+      "total": 121,
+      "wins": 39,
+      "losses": 63,
+      "expired": 16,
+      "not_triggered": 3,
+      "open": 0,
+      "winRate": 38.2,
+      "expR": -0.1,
+      "avgWinRR": 1.35
+    },
+    "trend_bounce": {
+      "total": 224,
+      "wins": 66,
+      "losses": 142,
+      "expired": 0,
+      "not_triggered": 15,
+      "open": 1,
+      "winRate": 31.7,
+      "expR": -0.03,
+      "avgWinRR": 2.06
+    },
+    "consolidation_breakout": {
+      "total": 1,
+      "wins": 1,
+      "losses": 0,
+      "expired": 0,
+      "not_triggered": 0,
+      "open": 0,
+      "winRate": 100,
+      "expR": 2.92,
+      "avgWinRR": 2.92
+    },
+    "consolidation_breakout_fixed_m13": {
+      "total": 1,
+      "wins": 1,
+      "losses": 0,
+      "expired": 0,
+      "not_triggered": 0,
+      "open": 0,
+      "winRate": 100,
+      "expR": 2.92,
+      "avgWinRR": 2.92
+    },
+    "consolidation_breakout_fixed_m15": {
+      "total": 2,
+      "wins": 1,
+      "losses": 1,
+      "expired": 0,
+      "not_triggered": 0,
+      "open": 0,
+      "winRate": 50,
+      "expR": 0.96,
+      "avgWinRR": 2.92
+    }
+  },
+  "byGrade": {
+    "counter_trend": {
+      "C": {
+        "total": 284,
+        "wins": 202,
+        "losses": 54,
+        "expired": 0,
+        "not_triggered": 25,
+        "open": 3,
+        "winRate": 78.9,
+        "expR": 1.37,
+        "avgWinRR": 2
+      }
+    },
+    "momentum_continuation": {
+      "B+": {
+        "total": 121,
+        "wins": 39,
+        "losses": 63,
+        "expired": 16,
+        "not_triggered": 3,
+        "open": 0,
+        "winRate": 38.2,
+        "expR": -0.1,
+        "avgWinRR": 1.35
+      }
+    },
+    "trend_bounce": {
+      "B+": {
+        "total": 128,
+        "wins": 37,
+        "losses": 83,
+        "expired": 0,
+        "not_triggered": 7,
+        "open": 1,
+        "winRate": 30.8,
+        "expR": -0.01,
+        "avgWinRR": 2.23
+      },
+      "B": {
+        "total": 96,
+        "wins": 29,
+        "losses": 59,
+        "expired": 0,
+        "not_triggered": 8,
+        "open": 0,
+        "winRate": 33,
+        "expR": -0.06,
+        "avgWinRR": 1.86
+      }
+    },
+    "consolidation_breakout": {
+      "B+": {
+        "total": 1,
+        "wins": 1,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": 100,
+        "expR": 2.92,
+        "avgWinRR": 2.92
+      }
+    },
+    "consolidation_breakout_fixed_m13": {
+      "B+": {
+        "total": 1,
+        "wins": 1,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": 100,
+        "expR": 2.92,
+        "avgWinRR": 2.92
+      }
+    },
+    "consolidation_breakout_fixed_m15": {
+      "B+": {
+        "total": 2,
+        "wins": 1,
+        "losses": 1,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": 50,
+        "expR": 0.96,
+        "avgWinRR": 2.92
+      }
+    }
+  },
+  "bySession": {
+    "counter_trend": {
+      "morning": {
+        "total": 133,
+        "wins": 94,
+        "losses": 21,
+        "expired": 0,
+        "not_triggered": 16,
+        "open": 2,
+        "winRate": 81.7,
+        "expR": 1.45,
+        "avgWinRR": 2
+      },
+      "afternoon": {
+        "total": 151,
+        "wins": 108,
+        "losses": 33,
+        "expired": 0,
+        "not_triggered": 9,
+        "open": 1,
+        "winRate": 76.6,
+        "expR": 1.3,
+        "avgWinRR": 2
+      }
+    },
+    "momentum_continuation": {
+      "morning": {
+        "total": 121,
+        "wins": 39,
+        "losses": 63,
+        "expired": 16,
+        "not_triggered": 3,
+        "open": 0,
+        "winRate": 38.2,
+        "expR": -0.1,
+        "avgWinRR": 1.35
+      },
+      "afternoon": {
+        "total": 0,
+        "wins": 0,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": null,
+        "expR": null,
+        "avgWinRR": null
+      }
+    },
+    "trend_bounce": {
+      "morning": {
+        "total": 108,
+        "wins": 26,
+        "losses": 73,
+        "expired": 0,
+        "not_triggered": 8,
+        "open": 1,
+        "winRate": 26.3,
+        "expR": -0.14,
+        "avgWinRR": 2.29
+      },
+      "afternoon": {
+        "total": 116,
+        "wins": 40,
+        "losses": 69,
+        "expired": 0,
+        "not_triggered": 7,
+        "open": 0,
+        "winRate": 36.7,
+        "expR": 0.07,
+        "avgWinRR": 1.92
+      }
+    },
+    "consolidation_breakout": {
+      "morning": {
+        "total": 1,
+        "wins": 1,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": 100,
+        "expR": 2.92,
+        "avgWinRR": 2.92
+      },
+      "afternoon": {
+        "total": 0,
+        "wins": 0,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": null,
+        "expR": null,
+        "avgWinRR": null
+      }
+    },
+    "consolidation_breakout_fixed_m13": {
+      "morning": {
+        "total": 1,
+        "wins": 1,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": 100,
+        "expR": 2.92,
+        "avgWinRR": 2.92
+      },
+      "afternoon": {
+        "total": 0,
+        "wins": 0,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": null,
+        "expR": null,
+        "avgWinRR": null
+      }
+    },
+    "consolidation_breakout_fixed_m15": {
+      "morning": {
+        "total": 2,
+        "wins": 1,
+        "losses": 1,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": 50,
+        "expR": 0.96,
+        "avgWinRR": 2.92
+      },
+      "afternoon": {
+        "total": 0,
+        "wins": 0,
+        "losses": 0,
+        "expired": 0,
+        "not_triggered": 0,
+        "open": 0,
+        "winRate": null,
+        "expR": null,
+        "avgWinRR": null
+      }
+    }
+  },
+  "monthly": {
+    "2026-01": {
+      "total": 72,
+      "wins": 32,
+      "losses": 33,
+      "expired": 1,
+      "not_triggered": 6,
+      "open": 0,
+      "winRate": 49.2,
+      "expR": 0.44,
+      "avgWinRR": 1.92
+    },
+    "2026-02": {
+      "total": 102,
+      "wins": 66,
+      "losses": 32,
+      "expired": 1,
+      "not_triggered": 3,
+      "open": 0,
+      "winRate": 67.3,
+      "expR": 0.89,
+      "avgWinRR": 1.81
+    },
+    "2026-03": {
+      "total": 84,
+      "wins": 28,
+      "losses": 37,
+      "expired": 5,
+      "not_triggered": 14,
+      "open": 0,
+      "winRate": 43.1,
+      "expR": 0.1,
+      "avgWinRR": 1.55
+    },
+    "2026-04": {
+      "total": 112,
+      "wins": 48,
+      "losses": 56,
+      "expired": 0,
+      "not_triggered": 8,
+      "open": 0,
+      "winRate": 46.2,
+      "expR": 0.3,
+      "avgWinRR": 1.81
+    },
+    "2026-05": {
+      "total": 108,
+      "wins": 50,
+      "losses": 48,
+      "expired": 3,
+      "not_triggered": 7,
+      "open": 0,
+      "winRate": 51,
+      "expR": 0.83,
+      "avgWinRR": 2.59
+    },
+    "2026-06": {
+      "total": 125,
+      "wins": 69,
+      "losses": 44,
+      "expired": 6,
+      "not_triggered": 5,
+      "open": 1,
+      "winRate": 61.1,
+      "expR": 0.82,
+      "avgWinRR": 1.98
+    },
+    "2026-07": {
+      "total": 30,
+      "wins": 17,
+      "losses": 10,
+      "expired": 0,
+      "not_triggered": 0,
+      "open": 3,
+      "winRate": 63,
+      "expR": 0.52,
+      "avgWinRR": 1.42
+    }
+  },
+  "runtimeMs": 787
+}

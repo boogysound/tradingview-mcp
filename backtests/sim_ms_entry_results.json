@@ -1,0 +1,4048 @@
+{
+  "result1h": {
+    "label": "1H",
+    "tradeCount": 64,
+    "summary": {
+      "1": {
+        "total": 64,
+        "wins": 38,
+        "losses": 26,
+        "open": 0,
+        "winRate": 59.375,
+        "expR": 0.1875
+      },
+      "2": {
+        "total": 64,
+        "wins": 22,
+        "losses": 41,
+        "open": 1,
+        "winRate": 34.92063492063492,
+        "expR": 0.047619047619047616
+      },
+      "3": {
+        "total": 64,
+        "wins": 13,
+        "losses": 48,
+        "open": 3,
+        "winRate": 21.311475409836063,
+        "expR": -0.14754098360655737
+      },
+      "1.5": {
+        "total": 64,
+        "wins": 34,
+        "losses": 30,
+        "open": 0,
+        "winRate": 53.125,
+        "expR": 0.328125
+      }
+    },
+    "byDirection": {
+      "bullish": {
+        "1": {
+          "total": 32,
+          "wins": 19,
+          "losses": 13,
+          "winRate": 59.375,
+          "expR": 0.1875
+        },
+        "2": {
+          "total": 32,
+          "wins": 11,
+          "losses": 20,
+          "winRate": 35.483870967741936,
+          "expR": 0.06451612903225806
+        },
+        "3": {
+          "total": 32,
+          "wins": 6,
+          "losses": 23,
+          "winRate": 20.689655172413794,
+          "expR": -0.1724137931034483
+        },
+        "1.5": {
+          "total": 32,
+          "wins": 17,
+          "losses": 15,
+          "winRate": 53.125,
+          "expR": 0.328125
+        }
+      },
+      "bearish": {
+        "1": {
+          "total": 32,
+          "wins": 19,
+          "losses": 13,
+          "winRate": 59.375,
+          "expR": 0.1875
+        },
+        "2": {
+          "total": 32,
+          "wins": 11,
+          "losses": 21,
+          "winRate": 34.375,
+          "expR": 0.03125
+        },
+        "3": {
+          "total": 32,
+          "wins": 7,
+          "losses": 25,
+          "winRate": 21.875,
+          "expR": -0.125
+        },
+        "1.5": {
+          "total": 32,
+          "wins": 17,
+          "losses": 15,
+          "winRate": 53.125,
+          "expR": 0.328125
+        }
+      }
+    },
+    "trades": [
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1761724800,
+        "brokenLevel": 24330.8,
+        "brokenLevelTime": 1761595200,
+        "level": 24179,
+        "entryPrice": 24266.25,
+        "sl": 24135.4778,
+        "slDist": 130.77219999999943,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1761757200,
+        "brokenLevel": 24179,
+        "brokenLevelTime": 1761638400,
+        "level": 24305.7,
+        "entryPrice": 24151.75,
+        "sl": 24349.45026,
+        "slDist": 197.70026000000144,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1761829200,
+        "brokenLevel": 24183.8,
+        "brokenLevelTime": 1761757200,
+        "level": 23998.63,
+        "entryPrice": 24134.45,
+        "sl": 23955.432466000002,
+        "slDist": 179.0175339999987,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1761908400,
+        "brokenLevel": 23998.63,
+        "brokenLevelTime": 1761760800,
+        "level": 24138.55,
+        "entryPrice": 24060.15,
+        "sl": 24181.99939,
+        "slDist": 121.8493899999994,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1762185600,
+        "brokenLevel": 24076.2,
+        "brokenLevelTime": 1761908400,
+        "level": 23904.55,
+        "entryPrice": 24125.2,
+        "sl": 23861.52181,
+        "slDist": 263.67819000000236,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1762268400,
+        "brokenLevel": 23904.55,
+        "brokenLevelTime": 1761930000,
+        "level": 24173.65,
+        "entryPrice": 23934.55,
+        "sl": 24217.16257,
+        "slDist": 282.61257000000114,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1762783200,
+        "brokenLevel": 23836.2,
+        "brokenLevelTime": 1762502400,
+        "level": 23448.27,
+        "entryPrice": 23965.6,
+        "sl": 23406.063114,
+        "slDist": 559.536885999998,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1763103600,
+        "brokenLevel": 23940.7,
+        "brokenLevelTime": 1762862400,
+        "level": 24488.15,
+        "entryPrice": 23994.7,
+        "sl": 24532.22867,
+        "slDist": 537.5286699999997,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1763568000,
+        "brokenLevel": 23355.1,
+        "brokenLevelTime": 1763463600,
+        "level": 23098.35,
+        "entryPrice": 23195.7,
+        "sl": 23056.772969999998,
+        "slDist": 138.92703000000256,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1763730000,
+        "brokenLevel": 23306.38,
+        "brokenLevelTime": 1763629200,
+        "level": 23512.2,
+        "entryPrice": 23241.7,
+        "sl": 23554.521960000002,
+        "slDist": 312.8219600000011,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1764097200,
+        "brokenLevel": 23512.2,
+        "brokenLevelTime": 1763650800,
+        "level": 23131.1,
+        "entryPrice": 23525.65,
+        "sl": 23089.46402,
+        "slDist": 436.185980000002,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1764612000,
+        "brokenLevel": 23713.75,
+        "brokenLevelTime": 1764316800,
+        "level": 23886.1,
+        "entryPrice": 23662.1,
+        "sl": 23929.094979999998,
+        "slDist": 266.9949799999995,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1764838800,
+        "brokenLevel": 23886.1,
+        "brokenLevelTime": 1764342000,
+        "level": 23640.1,
+        "entryPrice": 23862.3,
+        "sl": 23597.54782,
+        "slDist": 264.7521799999995,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1766404800,
+        "brokenLevel": 24276.4,
+        "brokenLevelTime": 1766174400,
+        "level": 24355.1,
+        "entryPrice": 24289.3,
+        "sl": 24398.939179999998,
+        "slDist": 109.6391799999983,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1766494800,
+        "brokenLevel": 24310.3,
+        "brokenLevelTime": 1766404800,
+        "level": 24197.6,
+        "entryPrice": 24265.25,
+        "sl": 24154.044319999997,
+        "slDist": 111.20568000000276,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1767006000,
+        "brokenLevel": 24314.1,
+        "brokenLevelTime": 1766520000,
+        "level": 24426.55,
+        "entryPrice": 24334.05,
+        "sl": 24470.517789999998,
+        "slDist": 136.46778999999879,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1767340800,
+        "brokenLevel": 24426.55,
+        "brokenLevelTime": 1766991600,
+        "level": 24317.35,
+        "entryPrice": 24625.1,
+        "sl": 24273.57877,
+        "slDist": 351.52122999999847,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1767902400,
+        "brokenLevel": 25044.25,
+        "brokenLevelTime": 1767855600,
+        "level": 25218.44,
+        "entryPrice": 25174.6,
+        "sl": 25263.833192,
+        "slDist": 89.23319199999969,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1767970800,
+        "brokenLevel": 25218.44,
+        "brokenLevelTime": 1767859200,
+        "level": 25100.4,
+        "entryPrice": 25235.5,
+        "sl": 25055.21928,
+        "slDist": 180.28071999999884,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1768460400,
+        "brokenLevel": 25338.5,
+        "brokenLevelTime": 1768298400,
+        "level": 25454.5,
+        "entryPrice": 25307.5,
+        "sl": 25500.3181,
+        "slDist": 192.8181000000004,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1769094000,
+        "brokenLevel": 24709.68,
+        "brokenLevelTime": 1768978800,
+        "level": 24409.45,
+        "entryPrice": 24847.35,
+        "sl": 24365.51299,
+        "slDist": 481.8370099999993,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1769511600,
+        "brokenLevel": 24924.5,
+        "brokenLevelTime": 1769457600,
+        "level": 25021.9,
+        "entryPrice": 24935,
+        "sl": 25066.939420000002,
+        "slDist": 131.93942000000243,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1770145200,
+        "brokenLevel": 24587.58,
+        "brokenLevelTime": 1769785200,
+        "level": 24254.35,
+        "entryPrice": 24712.25,
+        "sl": 24210.69217,
+        "slDist": 501.55783000000156,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1770922800,
+        "brokenLevel": 24827.41,
+        "brokenLevelTime": 1770822000,
+        "level": 25225.55,
+        "entryPrice": 24940.3,
+        "sl": 25270.95599,
+        "slDist": 330.6559899999993,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1771012800,
+        "brokenLevel": 24957.05,
+        "brokenLevelTime": 1770922800,
+        "level": 24729.21,
+        "entryPrice": 24885.35,
+        "sl": 24684.697421999997,
+        "slDist": 200.65257800000109,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1771322400,
+        "brokenLevel": 24836.7,
+        "brokenLevelTime": 1771012800,
+        "level": 24954.45,
+        "entryPrice": 24816.16,
+        "sl": 24999.368010000002,
+        "slDist": 183.2080100000021,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1771423200,
+        "brokenLevel": 24954.45,
+        "brokenLevelTime": 1771243200,
+        "level": 24733.3,
+        "entryPrice": 25235.95,
+        "sl": 24688.78006,
+        "slDist": 547.1699399999998,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1771578000,
+        "brokenLevel": 25091.45,
+        "brokenLevelTime": 1771423200,
+        "level": 25315.15,
+        "entryPrice": 25106.35,
+        "sl": 25360.71727,
+        "slDist": 254.36727000000246,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1771610400,
+        "brokenLevel": 25315.15,
+        "brokenLevelTime": 1771430400,
+        "level": 25061.35,
+        "entryPrice": 25258.45,
+        "sl": 25016.239569999998,
+        "slDist": 242.21043000000282,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1771851600,
+        "brokenLevel": 25061.35,
+        "brokenLevelTime": 1771585200,
+        "level": 25190.45,
+        "entryPrice": 25152.9,
+        "sl": 25235.79281,
+        "slDist": 82.89280999999755,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1772006400,
+        "brokenLevel": 25033.44,
+        "brokenLevelTime": 1771916400,
+        "level": 24881.3,
+        "entryPrice": 25047.55,
+        "sl": 24836.51366,
+        "slDist": 211.03633999999875,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1772424000,
+        "brokenLevel": 25148.3,
+        "brokenLevelTime": 1772118000,
+        "level": 25333.1,
+        "entryPrice": 24918.25,
+        "sl": 25378.699579999997,
+        "slDist": 460.4495799999968,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1773115200,
+        "brokenLevel": 23702.14,
+        "brokenLevelTime": 1772827200,
+        "level": 23307.67,
+        "entryPrice": 23567.61,
+        "sl": 23265.716193999997,
+        "slDist": 301.8938060000037,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1773198000,
+        "brokenLevel": 23763.88,
+        "brokenLevelTime": 1773151200,
+        "level": 24106.17,
+        "entryPrice": 23987.93,
+        "sl": 24149.561105999997,
+        "slDist": 161.6311059999971,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1773244800,
+        "brokenLevel": 23814.36,
+        "brokenLevelTime": 1773226800,
+        "level": 23529.05,
+        "entryPrice": 23685.82,
+        "sl": 23486.69771,
+        "slDist": 199.12228999999934,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1773313200,
+        "brokenLevel": 23529.05,
+        "brokenLevelTime": 1773230400,
+        "level": 23709.95,
+        "entryPrice": 23620.21,
+        "sl": 23752.62791,
+        "slDist": 132.41791000000012,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1773432000,
+        "brokenLevel": 23709.95,
+        "brokenLevelTime": 1773255600,
+        "level": 23289.33,
+        "entryPrice": 23351.82,
+        "sl": 23247.409206,
+        "slDist": 104.41079399999944,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1773856800,
+        "brokenLevel": 23660.37,
+        "brokenLevelTime": 1773784800,
+        "level": 23958.8,
+        "entryPrice": 23383.49,
+        "sl": 24001.92584,
+        "slDist": 618.4358399999983,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1774281600,
+        "brokenLevel": 22209.45,
+        "brokenLevelTime": 1774227600,
+        "level": 21860.55,
+        "entryPrice": 22694.06,
+        "sl": 21821.20101,
+        "slDist": 872.8589900000006,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1776816000,
+        "brokenLevel": 24253.38,
+        "brokenLevelTime": 1776427200,
+        "level": 24608.15,
+        "entryPrice": 24244.74,
+        "sl": 24652.44467,
+        "slDist": 407.70466999999917,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1777240800,
+        "brokenLevel": 24262.75,
+        "brokenLevelTime": 1776956400,
+        "level": 23992.1,
+        "entryPrice": 24164.18,
+        "sl": 23948.91422,
+        "slDist": 215.26578000000154,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1777309200,
+        "brokenLevel": 24136.97,
+        "brokenLevelTime": 1777276800,
+        "level": 24380.89,
+        "entryPrice": 24132.19,
+        "sl": 24424.775601999998,
+        "slDist": 292.5856019999992,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1777852800,
+        "brokenLevel": 23947.45,
+        "brokenLevelTime": 1777514400,
+        "level": 23620.95,
+        "entryPrice": 24325.45,
+        "sl": 23578.43229,
+        "slDist": 747.0177100000001,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "open",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1777939200,
+        "brokenLevel": 24286.95,
+        "brokenLevelTime": 1777852800,
+        "level": 24408.68,
+        "entryPrice": 23918.18,
+        "sl": 24452.615624000002,
+        "slDist": 534.4356240000016,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1778032800,
+        "brokenLevel": 24408.68,
+        "brokenLevelTime": 1777878000,
+        "level": 24221.25,
+        "entryPrice": 24511.95,
+        "sl": 24177.65175,
+        "slDist": 334.2982499999998,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1778202000,
+        "brokenLevel": 24506.95,
+        "brokenLevelTime": 1778032800,
+        "level": 25017.75,
+        "entryPrice": 24465.95,
+        "sl": 25062.78195,
+        "slDist": 596.8319499999998,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1778662800,
+        "brokenLevel": 24211.89,
+        "brokenLevelTime": 1778576400,
+        "level": 23984.78,
+        "entryPrice": 24148.17,
+        "sl": 23941.607396,
+        "slDist": 206.56260399999883,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1778828400,
+        "brokenLevel": 24195.55,
+        "brokenLevelTime": 1778734800,
+        "level": 24353.17,
+        "entryPrice": 24200.86,
+        "sl": 24397.005706,
+        "slDist": 196.14570599999934,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1779130800,
+        "brokenLevel": 23956.56,
+        "brokenLevelTime": 1778868000,
+        "level": 23629.5,
+        "entryPrice": 24388.59,
+        "sl": 23586.9669,
+        "slDist": 801.6231000000007,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "open",
+          "3": "open",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1779958800,
+        "brokenLevel": 25058.65,
+        "brokenLevelTime": 1779692400,
+        "level": 25255.71,
+        "entryPrice": 25127.32,
+        "sl": 25301.170277999998,
+        "slDist": 173.85027799999807,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1780419600,
+        "brokenLevel": 25302.98,
+        "brokenLevelTime": 1780315200,
+        "level": 24981.94,
+        "entryPrice": 25062.73,
+        "sl": 24936.972508,
+        "slDist": 125.75749200000064,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1780534800,
+        "brokenLevel": 24981.94,
+        "brokenLevelTime": 1780358400,
+        "level": 25123.39,
+        "entryPrice": 24742.45,
+        "sl": 25168.612102,
+        "slDist": 426.1621019999984,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1780938000,
+        "brokenLevel": 24613.45,
+        "brokenLevelTime": 1780884000,
+        "level": 24330.45,
+        "entryPrice": 24564.81,
+        "sl": 24286.65519,
+        "slDist": 278.15481,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1781031600,
+        "brokenLevel": 24533.65,
+        "brokenLevelTime": 1780988400,
+        "level": 24820.87,
+        "entryPrice": 24526.04,
+        "sl": 24865.547565999997,
+        "slDist": 339.5075659999966,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1781226000,
+        "brokenLevel": 24361.25,
+        "brokenLevelTime": 1781096400,
+        "level": 24166.29,
+        "entryPrice": 24619.27,
+        "sl": 24122.790678,
+        "slDist": 496.47932199999923,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "open",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1781661600,
+        "brokenLevel": 24830.28,
+        "brokenLevelTime": 1781575200,
+        "level": 25110.67,
+        "entryPrice": 24803.94,
+        "sl": 25155.869206,
+        "slDist": 351.9292060000007,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1781870400,
+        "brokenLevel": 25110.67,
+        "brokenLevelTime": 1781596800,
+        "level": 24889.05,
+        "entryPrice": 25059.36,
+        "sl": 24844.24971,
+        "slDist": 215.11029000000053,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1782223200,
+        "brokenLevel": 24897.58,
+        "brokenLevelTime": 1782122400,
+        "level": 25178.02,
+        "entryPrice": 24955.65,
+        "sl": 25223.340436000002,
+        "slDist": 267.6904360000008,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1782424800,
+        "brokenLevel": 24939.17,
+        "brokenLevelTime": 1782277200,
+        "level": 24684.5,
+        "entryPrice": 24952.02,
+        "sl": 24640.0679,
+        "slDist": 311.95210000000225,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1782486000,
+        "brokenLevel": 24684.5,
+        "brokenLevelTime": 1782352800,
+        "level": 24892.31,
+        "entryPrice": 24675.93,
+        "sl": 24937.116158,
+        "slDist": 261.18615800000043,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1782824400,
+        "brokenLevel": 24892.31,
+        "brokenLevelTime": 1782453600,
+        "level": 24677.65,
+        "entryPrice": 24937.35,
+        "sl": 24633.23023,
+        "slDist": 304.1197699999975,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1782921600,
+        "brokenLevel": 24948.88,
+        "brokenLevelTime": 1782871200,
+        "level": 25093.97,
+        "entryPrice": 25044.62,
+        "sl": 25139.139146,
+        "slDist": 94.51914600000237,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bullish",
+        "confirmTime": 1783015200,
+        "brokenLevel": 25151.7,
+        "brokenLevelTime": 1782954000,
+        "level": 24962.9,
+        "entryPrice": 25534.73,
+        "sl": 24917.966780000002,
+        "slDist": 616.7632199999971,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "1H",
+        "direction": "bearish",
+        "confirmTime": 1783375200,
+        "brokenLevel": 25784.88,
+        "brokenLevelTime": 1783101600,
+        "level": 25903.18,
+        "entryPrice": 25824.38,
+        "sl": 25949.805724,
+        "slDist": 125.42572400000063,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      }
+    ]
+  },
+  "result5m": {
+    "label": "5m",
+    "tradeCount": 162,
+    "summary": {
+      "1": {
+        "total": 162,
+        "wins": 90,
+        "losses": 72,
+        "open": 0,
+        "winRate": 55.55555555555556,
+        "expR": 0.1111111111111111
+      },
+      "2": {
+        "total": 162,
+        "wins": 57,
+        "losses": 105,
+        "open": 0,
+        "winRate": 35.18518518518518,
+        "expR": 0.05555555555555555
+      },
+      "3": {
+        "total": 162,
+        "wins": 47,
+        "losses": 115,
+        "open": 0,
+        "winRate": 29.01234567901235,
+        "expR": 0.16049382716049382
+      },
+      "1.5": {
+        "total": 162,
+        "wins": 75,
+        "losses": 87,
+        "open": 0,
+        "winRate": 46.2962962962963,
+        "expR": 0.1574074074074074
+      }
+    },
+    "byDirection": {
+      "bullish": {
+        "1": {
+          "total": 81,
+          "wins": 44,
+          "losses": 37,
+          "winRate": 54.32098765432099,
+          "expR": 0.08641975308641975
+        },
+        "2": {
+          "total": 81,
+          "wins": 25,
+          "losses": 56,
+          "winRate": 30.864197530864196,
+          "expR": -0.07407407407407407
+        },
+        "3": {
+          "total": 81,
+          "wins": 22,
+          "losses": 59,
+          "winRate": 27.160493827160494,
+          "expR": 0.08641975308641975
+        },
+        "1.5": {
+          "total": 81,
+          "wins": 35,
+          "losses": 46,
+          "winRate": 43.20987654320987,
+          "expR": 0.08024691358024691
+        }
+      },
+      "bearish": {
+        "1": {
+          "total": 81,
+          "wins": 46,
+          "losses": 35,
+          "winRate": 56.79012345679012,
+          "expR": 0.13580246913580246
+        },
+        "2": {
+          "total": 81,
+          "wins": 32,
+          "losses": 49,
+          "winRate": 39.50617283950617,
+          "expR": 0.18518518518518517
+        },
+        "3": {
+          "total": 81,
+          "wins": 25,
+          "losses": 56,
+          "winRate": 30.864197530864196,
+          "expR": 0.2345679012345679
+        },
+        "1.5": {
+          "total": 81,
+          "wins": 40,
+          "losses": 41,
+          "winRate": 49.382716049382715,
+          "expR": 0.2345679012345679
+        }
+      }
+    },
+    "trades": [
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779076200,
+        "brokenLevel": 23720.8,
+        "brokenLevelTime": 1779073500,
+        "level": 23676.3,
+        "entryPrice": 23709.8,
+        "sl": 23633.68266,
+        "slDist": 76.1173400000007,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779079500,
+        "brokenLevel": 23703.3,
+        "brokenLevelTime": 1779076200,
+        "level": 23768.8,
+        "entryPrice": 23733.3,
+        "sl": 23811.58384,
+        "slDist": 78.28384000000005,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779090000,
+        "brokenLevel": 23774.8,
+        "brokenLevelTime": 1779083100,
+        "level": 23629.5,
+        "entryPrice": 23831.42,
+        "sl": 23586.9669,
+        "slDist": 244.4530999999988,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779116100,
+        "brokenLevel": 24305.88,
+        "brokenLevelTime": 1779111900,
+        "level": 24430.95,
+        "entryPrice": 24348.27,
+        "sl": 24474.92571,
+        "slDist": 126.65570999999909,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779120300,
+        "brokenLevel": 24288.15,
+        "brokenLevelTime": 1779117300,
+        "level": 24236.4,
+        "entryPrice": 24295.52,
+        "sl": 24192.77448,
+        "slDist": 102.7455200000004,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779122100,
+        "brokenLevel": 24236.4,
+        "brokenLevelTime": 1779118200,
+        "level": 24329.97,
+        "entryPrice": 24283.08,
+        "sl": 24373.763946000003,
+        "slDist": 90.68394600000101,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779134700,
+        "brokenLevel": 24341.12,
+        "brokenLevelTime": 1779130800,
+        "level": 24153.5,
+        "entryPrice": 24375.38,
+        "sl": 24110.0237,
+        "slDist": 265.35629999999946,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779151800,
+        "brokenLevel": 24414.77,
+        "brokenLevelTime": 1779144600,
+        "level": 24438.99,
+        "entryPrice": 24329.53,
+        "sl": 24482.980182000003,
+        "slDist": 153.45018200000413,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779173700,
+        "brokenLevel": 24331.71,
+        "brokenLevelTime": 1779161700,
+        "level": 24256.01,
+        "entryPrice": 24329.23,
+        "sl": 24212.349181999998,
+        "slDist": 116.88081800000145,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779199500,
+        "brokenLevel": 24549.41,
+        "brokenLevelTime": 1779192000,
+        "level": 24636.01,
+        "entryPrice": 24481.13,
+        "sl": 24680.354818,
+        "slDist": 199.22481799999878,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779205500,
+        "brokenLevel": 24419.98,
+        "brokenLevelTime": 1779201600,
+        "level": 24357.17,
+        "entryPrice": 24390.5,
+        "sl": 24313.327093999997,
+        "slDist": 77.17290600000342,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779218100,
+        "brokenLevel": 24373.84,
+        "brokenLevelTime": 1779212100,
+        "level": 24416.8,
+        "entryPrice": 24373.45,
+        "sl": 24460.750239999998,
+        "slDist": 87.30023999999685,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779243000,
+        "brokenLevel": 24308.92,
+        "brokenLevelTime": 1779239400,
+        "level": 24216.62,
+        "entryPrice": 24289.52,
+        "sl": 24173.030083999998,
+        "slDist": 116.48991600000227,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779248100,
+        "brokenLevel": 24216.62,
+        "brokenLevelTime": 1779240900,
+        "level": 24316.48,
+        "entryPrice": 24251.18,
+        "sl": 24360.249664,
+        "slDist": 109.06966399999874,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779259200,
+        "brokenLevel": 24316.48,
+        "brokenLevelTime": 1779243600,
+        "level": 24250.79,
+        "entryPrice": 24329.97,
+        "sl": 24207.138578000002,
+        "slDist": 122.83142199999929,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779362400,
+        "brokenLevel": 24752.63,
+        "brokenLevelTime": 1779352500,
+        "level": 24879.56,
+        "entryPrice": 24622.42,
+        "sl": 24924.343208000002,
+        "slDist": 301.9232080000038,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779372900,
+        "brokenLevel": 24624.2,
+        "brokenLevelTime": 1779369600,
+        "level": 24530.3,
+        "entryPrice": 24626.4,
+        "sl": 24486.14546,
+        "slDist": 140.25454000000173,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779378300,
+        "brokenLevel": 24652.28,
+        "brokenLevelTime": 1779374700,
+        "level": 24717.55,
+        "entryPrice": 24649.21,
+        "sl": 24762.04159,
+        "slDist": 112.8315900000016,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779386700,
+        "brokenLevel": 24717.55,
+        "brokenLevelTime": 1779375600,
+        "level": 24627.52,
+        "entryPrice": 24871.65,
+        "sl": 24583.190464,
+        "slDist": 288.4595360000021,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779411300,
+        "brokenLevel": 24881.26,
+        "brokenLevelTime": 1779406500,
+        "level": 24919.08,
+        "entryPrice": 24858.15,
+        "sl": 24963.934344,
+        "slDist": 105.78434399999969,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779415500,
+        "brokenLevel": 24869.15,
+        "brokenLevelTime": 1779412800,
+        "level": 24838.22,
+        "entryPrice": 24855.23,
+        "sl": 24793.511204000002,
+        "slDist": 61.71879599999738,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779432000,
+        "brokenLevel": 24863.9,
+        "brokenLevelTime": 1779425400,
+        "level": 24899.88,
+        "entryPrice": 24872.61,
+        "sl": 24944.699784,
+        "slDist": 72.08978399999978,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779446700,
+        "brokenLevel": 24790.13,
+        "brokenLevelTime": 1779438000,
+        "level": 24724.56,
+        "entryPrice": 24779.63,
+        "sl": 24680.055792000003,
+        "slDist": 99.57420799999818,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779477300,
+        "brokenLevel": 24803.35,
+        "brokenLevelTime": 1779470100,
+        "level": 24869.82,
+        "entryPrice": 24815.96,
+        "sl": 24914.585676,
+        "slDist": 98.62567599999966,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779665100,
+        "brokenLevel": 24822.94,
+        "brokenLevelTime": 1779477300,
+        "level": 24791.54,
+        "entryPrice": 25009.01,
+        "sl": 24746.915228,
+        "slDist": 262.09477199999674,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779691500,
+        "brokenLevel": 25170.95,
+        "brokenLevelTime": 1779684900,
+        "level": 25231.95,
+        "entryPrice": 25153.15,
+        "sl": 25277.36751,
+        "slDist": 124.21750999999858,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779694800,
+        "brokenLevel": 25201.25,
+        "brokenLevelTime": 1779692400,
+        "level": 25058.65,
+        "entryPrice": 25150.6,
+        "sl": 25013.54443,
+        "slDist": 137.0555699999968,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779755700,
+        "brokenLevel": 25341.27,
+        "brokenLevelTime": 1779721500,
+        "level": 25396.06,
+        "entryPrice": 25326.57,
+        "sl": 25441.772908000003,
+        "slDist": 115.20290800000294,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779822000,
+        "brokenLevel": 25207.31,
+        "brokenLevelTime": 1779815700,
+        "level": 25192.92,
+        "entryPrice": 25202.96,
+        "sl": 25147.572743999997,
+        "slDist": 55.3872560000018,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779890400,
+        "brokenLevel": 25229.4,
+        "brokenLevelTime": 1779884100,
+        "level": 25374.17,
+        "entryPrice": 25254.34,
+        "sl": 25419.843505999997,
+        "slDist": 165.5035059999973,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779957300,
+        "brokenLevel": 25164.45,
+        "brokenLevelTime": 1779934800,
+        "level": 25095.56,
+        "entryPrice": 25135.69,
+        "sl": 25050.387992,
+        "slDist": 85.30200799999875,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1779961800,
+        "brokenLevel": 25121.94,
+        "brokenLevelTime": 1779957300,
+        "level": 25177.03,
+        "entryPrice": 25132.91,
+        "sl": 25222.348653999998,
+        "slDist": 89.43865399999777,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1779977400,
+        "brokenLevel": 25098.07,
+        "brokenLevelTime": 1779973200,
+        "level": 24969.52,
+        "entryPrice": 25182.24,
+        "sl": 24924.574864000002,
+        "slDist": 257.6651359999996,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780321500,
+        "brokenLevel": 25213.67,
+        "brokenLevelTime": 1780316100,
+        "level": 25302.98,
+        "entryPrice": 25006.2,
+        "sl": 25348.525364,
+        "slDist": 342.32536400000026,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780326000,
+        "brokenLevel": 25036.44,
+        "brokenLevelTime": 1780321500,
+        "level": 24898.16,
+        "entryPrice": 24961.45,
+        "sl": 24853.343312,
+        "slDist": 108.10668799999985,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780355700,
+        "brokenLevel": 25019.88,
+        "brokenLevelTime": 1780333500,
+        "level": 25090.69,
+        "entryPrice": 25016.02,
+        "sl": 25135.853241999997,
+        "slDist": 119.83324199999697,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780365000,
+        "brokenLevel": 25044.34,
+        "brokenLevelTime": 1780360200,
+        "level": 24981.94,
+        "entryPrice": 25028.45,
+        "sl": 24936.972508,
+        "slDist": 91.4774920000018,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780393800,
+        "brokenLevel": 25212.99,
+        "brokenLevelTime": 1780385100,
+        "level": 25275.83,
+        "entryPrice": 25262.76,
+        "sl": 25321.326494,
+        "slDist": 58.56649400000242,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780429500,
+        "brokenLevel": 25092.62,
+        "brokenLevelTime": 1780419600,
+        "level": 25056.21,
+        "entryPrice": 25104.81,
+        "sl": 25011.108822,
+        "slDist": 93.70117800000298,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780439400,
+        "brokenLevel": 25100.31,
+        "brokenLevelTime": 1780429500,
+        "level": 25119.04,
+        "entryPrice": 25107.65,
+        "sl": 25164.254272000002,
+        "slDist": 56.60427200000049,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780448400,
+        "brokenLevel": 25111.03,
+        "brokenLevelTime": 1780439400,
+        "level": 25014.58,
+        "entryPrice": 25082.72,
+        "sl": 24969.553756,
+        "slDist": 113.166244,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780460700,
+        "brokenLevel": 25091.92,
+        "brokenLevelTime": 1780458900,
+        "level": 25123.39,
+        "entryPrice": 25104.45,
+        "sl": 25168.612102,
+        "slDist": 64.16210199999841,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780482000,
+        "brokenLevel": 24894.93,
+        "brokenLevelTime": 1780479300,
+        "level": 24831.37,
+        "entryPrice": 24878.48,
+        "sl": 24786.673533999998,
+        "slDist": 91.80646600000182,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780491900,
+        "brokenLevel": 24861.73,
+        "brokenLevelTime": 1780485000,
+        "level": 24939.19,
+        "entryPrice": 24901.35,
+        "sl": 24984.080542,
+        "slDist": 82.73054200000115,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780534200,
+        "brokenLevel": 24693.44,
+        "brokenLevelTime": 1780527300,
+        "level": 24653.73,
+        "entryPrice": 24751.45,
+        "sl": 24609.353285999998,
+        "slDist": 142.09671400000298,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780539900,
+        "brokenLevel": 24736.95,
+        "brokenLevelTime": 1780534200,
+        "level": 24786.95,
+        "entryPrice": 24728.95,
+        "sl": 24831.56651,
+        "slDist": 102.61650999999983,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780555500,
+        "brokenLevel": 24786.95,
+        "brokenLevelTime": 1780535400,
+        "level": 24738.95,
+        "entryPrice": 24802.75,
+        "sl": 24694.41989,
+        "slDist": 108.33010999999897,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780566900,
+        "brokenLevel": 24921.3,
+        "brokenLevelTime": 1780561200,
+        "level": 25002.38,
+        "entryPrice": 24962.39,
+        "sl": 25047.384284,
+        "slDist": 84.99428400000033,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780640700,
+        "brokenLevel": 24890.92,
+        "brokenLevelTime": 1780614000,
+        "level": 24808.14,
+        "entryPrice": 24854.14,
+        "sl": 24763.485348,
+        "slDist": 90.65465200000108,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780663500,
+        "brokenLevel": 24910.92,
+        "brokenLevelTime": 1780649400,
+        "level": 25009.84,
+        "entryPrice": 24938.15,
+        "sl": 25054.857712,
+        "slDist": 116.70771199999945,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780880100,
+        "brokenLevel": 24528.77,
+        "brokenLevelTime": 1780872000,
+        "level": 24467.29,
+        "entryPrice": 24553.95,
+        "sl": 24423.248878000002,
+        "slDist": 130.70112199999858,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780884600,
+        "brokenLevel": 24467.29,
+        "brokenLevelTime": 1780874400,
+        "level": 24571.95,
+        "entryPrice": 24551.45,
+        "sl": 24616.17951,
+        "slDist": 64.72951000000103,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780888500,
+        "brokenLevel": 24571.95,
+        "brokenLevelTime": 1780880700,
+        "level": 24519.7,
+        "entryPrice": 24541.95,
+        "sl": 24475.56454,
+        "slDist": 66.38546000000133,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780898700,
+        "brokenLevel": 24519.7,
+        "brokenLevelTime": 1780886100,
+        "level": 24547.2,
+        "entryPrice": 24381.45,
+        "sl": 24591.38496,
+        "slDist": 209.93495999999868,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780900800,
+        "brokenLevel": 24410.95,
+        "brokenLevelTime": 1780898700,
+        "level": 24330.45,
+        "entryPrice": 24380.75,
+        "sl": 24286.65519,
+        "slDist": 94.09480999999869,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780909200,
+        "brokenLevel": 24511.66,
+        "brokenLevelTime": 1780904100,
+        "level": 24595.55,
+        "entryPrice": 24560.11,
+        "sl": 24639.82199,
+        "slDist": 79.71198999999979,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780911300,
+        "brokenLevel": 24595.55,
+        "brokenLevelTime": 1780904700,
+        "level": 24529.36,
+        "entryPrice": 24588.59,
+        "sl": 24485.207152,
+        "slDist": 103.3828480000011,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780969500,
+        "brokenLevel": 24569.44,
+        "brokenLevelTime": 1780961400,
+        "level": 24592.14,
+        "entryPrice": 24578.05,
+        "sl": 24636.405852,
+        "slDist": 58.355852000000596,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780975500,
+        "brokenLevel": 24592.14,
+        "brokenLevelTime": 1780962000,
+        "level": 24542.44,
+        "entryPrice": 24564.23,
+        "sl": 24498.263607999997,
+        "slDist": 65.96639200000209,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1780983600,
+        "brokenLevel": 24599.54,
+        "brokenLevelTime": 1780979400,
+        "level": 24639.78,
+        "entryPrice": 24620.27,
+        "sl": 24684.131604,
+        "slDist": 63.8616039999979,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1780994100,
+        "brokenLevel": 24656.59,
+        "brokenLevelTime": 1780988700,
+        "level": 24533.65,
+        "entryPrice": 24714.97,
+        "sl": 24489.48943,
+        "slDist": 225.48056999999972,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781008500,
+        "brokenLevel": 24745.99,
+        "brokenLevelTime": 1780999500,
+        "level": 24786.08,
+        "entryPrice": 24736.33,
+        "sl": 24830.694944000003,
+        "slDist": 94.36494400000083,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781012100,
+        "brokenLevel": 24786.08,
+        "brokenLevelTime": 1781004000,
+        "level": 24715.75,
+        "entryPrice": 24745.05,
+        "sl": 24671.26165,
+        "slDist": 73.7883499999989,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781015400,
+        "brokenLevel": 24735.62,
+        "brokenLevelTime": 1781012100,
+        "level": 24813.88,
+        "entryPrice": 24712.63,
+        "sl": 24858.544984,
+        "slDist": 145.9149839999991,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781028600,
+        "brokenLevel": 24437.82,
+        "brokenLevelTime": 1781022900,
+        "level": 24233.99,
+        "entryPrice": 24450.45,
+        "sl": 24190.368818000003,
+        "slDist": 260.0811819999981,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781033400,
+        "brokenLevel": 24495.96,
+        "brokenLevelTime": 1781030700,
+        "level": 24552.44,
+        "entryPrice": 24493.53,
+        "sl": 24596.634392,
+        "slDist": 103.1043920000011,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781036400,
+        "brokenLevel": 24510.01,
+        "brokenLevelTime": 1781033400,
+        "level": 24471.05,
+        "entryPrice": 24511.22,
+        "sl": 24427.002109999998,
+        "slDist": 84.21789000000354,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781043300,
+        "brokenLevel": 24471.05,
+        "brokenLevelTime": 1781034000,
+        "level": 24530.66,
+        "entryPrice": 24475.04,
+        "sl": 24574.815188,
+        "slDist": 99.77518799999962,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781052000,
+        "brokenLevel": 24483.45,
+        "brokenLevelTime": 1781043300,
+        "level": 24435.09,
+        "entryPrice": 24443.5,
+        "sl": 24391.106838,
+        "slDist": 52.3931620000003,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781064000,
+        "brokenLevel": 24436,
+        "brokenLevelTime": 1781052000,
+        "level": 24484.68,
+        "entryPrice": 24443.78,
+        "sl": 24528.752424000002,
+        "slDist": 84.97242400000323,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781070300,
+        "brokenLevel": 24457.26,
+        "brokenLevelTime": 1781064000,
+        "level": 24392.4,
+        "entryPrice": 24434.43,
+        "sl": 24348.493680000003,
+        "slDist": 85.93631999999707,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781078100,
+        "brokenLevel": 24466.02,
+        "brokenLevelTime": 1781073300,
+        "level": 24521.12,
+        "entryPrice": 24449.92,
+        "sl": 24565.258016,
+        "slDist": 115.33801600000152,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781084700,
+        "brokenLevel": 24318.69,
+        "brokenLevelTime": 1781082600,
+        "level": 24234.95,
+        "entryPrice": 24281.02,
+        "sl": 24191.327090000002,
+        "slDist": 89.69290999999794,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781087400,
+        "brokenLevel": 24234.95,
+        "brokenLevelTime": 1781082900,
+        "level": 24309.33,
+        "entryPrice": 24245.8,
+        "sl": 24353.086794000003,
+        "slDist": 107.28679400000328,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781098200,
+        "brokenLevel": 24269.9,
+        "brokenLevelTime": 1781088300,
+        "level": 24198.72,
+        "entryPrice": 24250,
+        "sl": 24155.162304,
+        "slDist": 94.83769599999869,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781106300,
+        "brokenLevel": 24241.17,
+        "brokenLevelTime": 1781098200,
+        "level": 24322.04,
+        "entryPrice": 24156.21,
+        "sl": 24365.819672,
+        "slDist": 209.60967200000232,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781117400,
+        "brokenLevel": 24157.64,
+        "brokenLevelTime": 1781112300,
+        "level": 24107.7,
+        "entryPrice": 24126.8,
+        "sl": 24064.30614,
+        "slDist": 62.493859999998676,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781120700,
+        "brokenLevel": 24107.7,
+        "brokenLevelTime": 1781112900,
+        "level": 24137.8,
+        "entryPrice": 24113.89,
+        "sl": 24181.24804,
+        "slDist": 67.35803999999916,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781138100,
+        "brokenLevel": 24049.06,
+        "brokenLevelTime": 1781131200,
+        "level": 23945.08,
+        "entryPrice": 23978.5,
+        "sl": 23901.978856,
+        "slDist": 76.52114399999846,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781182500,
+        "brokenLevel": 24226.13,
+        "brokenLevelTime": 1781176200,
+        "level": 24293.73,
+        "entryPrice": 24208.49,
+        "sl": 24337.458714,
+        "slDist": 128.96871399999873,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781187900,
+        "brokenLevel": 24293.73,
+        "brokenLevelTime": 1781177400,
+        "level": 24157.95,
+        "entryPrice": 24231.85,
+        "sl": 24114.46569,
+        "slDist": 117.38430999999764,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781224200,
+        "brokenLevel": 24603.67,
+        "brokenLevelTime": 1781210400,
+        "level": 24663.42,
+        "entryPrice": 24635.14,
+        "sl": 24707.814155999997,
+        "slDist": 72.67415599999731,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781253900,
+        "brokenLevel": 24589.97,
+        "brokenLevelTime": 1781247600,
+        "level": 24500.26,
+        "entryPrice": 24623.11,
+        "sl": 24456.159531999998,
+        "slDist": 166.95046800000273,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781270700,
+        "brokenLevel": 24500.26,
+        "brokenLevelTime": 1781249400,
+        "level": 24638.58,
+        "entryPrice": 24546.48,
+        "sl": 24682.929444,
+        "slDist": 136.44944400000168,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781278200,
+        "brokenLevel": 24552.39,
+        "brokenLevelTime": 1781270700,
+        "level": 24485.35,
+        "entryPrice": 24635.04,
+        "sl": 24441.27637,
+        "slDist": 193.76363000000129,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781280600,
+        "brokenLevel": 24602.56,
+        "brokenLevelTime": 1781278200,
+        "level": 24659.13,
+        "entryPrice": 24606.42,
+        "sl": 24703.516434,
+        "slDist": 97.09643400000277,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781285700,
+        "brokenLevel": 24659.13,
+        "brokenLevelTime": 1781278500,
+        "level": 24612.49,
+        "entryPrice": 24635.05,
+        "sl": 24568.187518000002,
+        "slDist": 66.86248199999682,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781480400,
+        "brokenLevel": 24920.68,
+        "brokenLevelTime": 1781475900,
+        "level": 24952.14,
+        "entryPrice": 24943.18,
+        "sl": 24997.053852,
+        "slDist": 53.873852000000625,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781485200,
+        "brokenLevel": 24952.14,
+        "brokenLevelTime": 1781477700,
+        "level": 24932.46,
+        "entryPrice": 25045.81,
+        "sl": 24887.581572,
+        "slDist": 158.22842800000217,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781511900,
+        "brokenLevel": 25017.01,
+        "brokenLevelTime": 1781506800,
+        "level": 25076.99,
+        "entryPrice": 25019.05,
+        "sl": 25122.128582,
+        "slDist": 103.07858200000192,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781571000,
+        "brokenLevel": 24853.16,
+        "brokenLevelTime": 1781560800,
+        "level": 24817.59,
+        "entryPrice": 24850.55,
+        "sl": 24772.918338,
+        "slDist": 77.63166199999978,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781627400,
+        "brokenLevel": 24899.56,
+        "brokenLevelTime": 1781595000,
+        "level": 24940.93,
+        "entryPrice": 24841.83,
+        "sl": 24985.823674,
+        "slDist": 143.99367399999755,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781651400,
+        "brokenLevel": 24797.3,
+        "brokenLevelTime": 1781638200,
+        "level": 24748.18,
+        "entryPrice": 24790.43,
+        "sl": 24703.633276,
+        "slDist": 86.79672399999981,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781668800,
+        "brokenLevel": 24809.23,
+        "brokenLevelTime": 1781660100,
+        "level": 24830.31,
+        "entryPrice": 24811.1,
+        "sl": 24875.004558,
+        "slDist": 63.904558000002,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781676000,
+        "brokenLevel": 24830.31,
+        "brokenLevelTime": 1781662200,
+        "level": 24822.76,
+        "entryPrice": 24862.4,
+        "sl": 24778.079031999998,
+        "slDist": 84.32096800000363,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781697900,
+        "brokenLevel": 24905.83,
+        "brokenLevelTime": 1781691900,
+        "level": 24905.11,
+        "entryPrice": 24885.53,
+        "sl": 24949.939198,
+        "slDist": 64.4091980000012,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781712900,
+        "brokenLevel": 24942.82,
+        "brokenLevelTime": 1781707500,
+        "level": 24823.86,
+        "entryPrice": 24962.95,
+        "sl": 24779.177052,
+        "slDist": 183.77294800000163,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781728500,
+        "brokenLevel": 24882.71,
+        "brokenLevelTime": 1781721000,
+        "level": 24985.5,
+        "entryPrice": 24857.74,
+        "sl": 25030.4739,
+        "slDist": 172.73389999999927,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781803200,
+        "brokenLevel": 25064.8,
+        "brokenLevelTime": 1781767500,
+        "level": 24997.75,
+        "entryPrice": 25066.55,
+        "sl": 24952.75405,
+        "slDist": 113.79594999999972,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781808600,
+        "brokenLevel": 25055.05,
+        "brokenLevelTime": 1781803200,
+        "level": 25081.55,
+        "entryPrice": 25056.55,
+        "sl": 25126.696789999998,
+        "slDist": 70.14678999999887,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781815800,
+        "brokenLevel": 25047.55,
+        "brokenLevelTime": 1781810400,
+        "level": 25032.55,
+        "entryPrice": 25082.73,
+        "sl": 24987.49141,
+        "slDist": 95.23859000000084,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781830800,
+        "brokenLevel": 25032.55,
+        "brokenLevelTime": 1781811900,
+        "level": 25062.52,
+        "entryPrice": 24986.55,
+        "sl": 25107.632536,
+        "slDist": 121.08253600000171,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781853600,
+        "brokenLevel": 24953.05,
+        "brokenLevelTime": 1781838000,
+        "level": 24926.55,
+        "entryPrice": 25102.85,
+        "sl": 24881.68221,
+        "slDist": 221.1677899999995,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1781862900,
+        "brokenLevel": 25130.75,
+        "brokenLevelTime": 1781856600,
+        "level": 25175.85,
+        "entryPrice": 25107.81,
+        "sl": 25221.16653,
+        "slDist": 113.35652999999729,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1781874900,
+        "brokenLevel": 25006.32,
+        "brokenLevelTime": 1781871900,
+        "level": 24947.18,
+        "entryPrice": 25035.48,
+        "sl": 24902.275076,
+        "slDist": 133.20492399999785,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782080700,
+        "brokenLevel": 24947.18,
+        "brokenLevelTime": 1781872500,
+        "level": 25001.93,
+        "entryPrice": 24955.52,
+        "sl": 25046.933474,
+        "slDist": 91.41347400000086,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782097200,
+        "brokenLevel": 24916.25,
+        "brokenLevelTime": 1782084300,
+        "level": 24846.24,
+        "entryPrice": 24947,
+        "sl": 24801.516768,
+        "slDist": 145.48323199999868,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782116700,
+        "brokenLevel": 25013.2,
+        "brokenLevelTime": 1782111600,
+        "level": 25080.3,
+        "entryPrice": 24984.93,
+        "sl": 25125.44454,
+        "slDist": 140.51454000000012,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782129900,
+        "brokenLevel": 24975.21,
+        "brokenLevelTime": 1782119700,
+        "level": 24899.53,
+        "entryPrice": 24982.58,
+        "sl": 24854.710845999998,
+        "slDist": 127.86915400000362,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782145200,
+        "brokenLevel": 25081.4,
+        "brokenLevelTime": 1782135600,
+        "level": 25166.97,
+        "entryPrice": 25087.31,
+        "sl": 25212.270546,
+        "slDist": 124.96054599999843,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782151200,
+        "brokenLevel": 25085.4,
+        "brokenLevelTime": 1782148800,
+        "level": 25061.6,
+        "entryPrice": 25086.46,
+        "sl": 25016.48912,
+        "slDist": 69.97088000000076,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782155700,
+        "brokenLevel": 25082.48,
+        "brokenLevelTime": 1782151200,
+        "level": 25108.34,
+        "entryPrice": 25081.1,
+        "sl": 25153.535012,
+        "slDist": 72.43501200000173,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782179100,
+        "brokenLevel": 25060.14,
+        "brokenLevelTime": 1782172500,
+        "level": 25028.51,
+        "entryPrice": 25041.93,
+        "sl": 24983.458681999997,
+        "slDist": 58.47131800000352,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782181500,
+        "brokenLevel": 25028.51,
+        "brokenLevelTime": 1782173700,
+        "level": 25058.82,
+        "entryPrice": 25034.03,
+        "sl": 25103.925876,
+        "slDist": 69.89587600000232,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782209700,
+        "brokenLevel": 24858.56,
+        "brokenLevelTime": 1782200400,
+        "level": 24736.17,
+        "entryPrice": 24881.07,
+        "sl": 24691.644893999997,
+        "slDist": 189.42510600000242,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782212400,
+        "brokenLevel": 24866.03,
+        "brokenLevelTime": 1782209700,
+        "level": 24912.08,
+        "entryPrice": 24863.58,
+        "sl": 24956.921744000003,
+        "slDist": 93.3417440000012,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782214200,
+        "brokenLevel": 24912.08,
+        "brokenLevelTime": 1782210000,
+        "level": 24835.78,
+        "entryPrice": 24867.79,
+        "sl": 24791.075596,
+        "slDist": 76.7144040000021,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782263400,
+        "brokenLevel": 24901.49,
+        "brokenLevelTime": 1782260700,
+        "level": 24943.23,
+        "entryPrice": 24932.97,
+        "sl": 24988.127814,
+        "slDist": 55.157813999998325,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782267600,
+        "brokenLevel": 24943.23,
+        "brokenLevelTime": 1782261900,
+        "level": 24901.06,
+        "entryPrice": 24912.08,
+        "sl": 24856.238092,
+        "slDist": 55.84190800000215,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782272100,
+        "brokenLevel": 24901.06,
+        "brokenLevelTime": 1782264000,
+        "level": 24934.43,
+        "entryPrice": 24898.28,
+        "sl": 24979.311974,
+        "slDist": 81.03197400000136,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782308400,
+        "brokenLevel": 24651.61,
+        "brokenLevelTime": 1782306300,
+        "level": 24589.33,
+        "entryPrice": 24631.8,
+        "sl": 24545.069206,
+        "slDist": 86.73079399999915,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782323700,
+        "brokenLevel": 24653.1,
+        "brokenLevelTime": 1782313800,
+        "level": 24727.69,
+        "entryPrice": 24654.28,
+        "sl": 24772.199841999998,
+        "slDist": 117.91984199999933,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782347100,
+        "brokenLevel": 24727.69,
+        "brokenLevelTime": 1782319800,
+        "level": 24649.94,
+        "entryPrice": 24730,
+        "sl": 24605.570108,
+        "slDist": 124.42989200000011,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782443700,
+        "brokenLevel": 24845.42,
+        "brokenLevelTime": 1782395700,
+        "level": 24948.18,
+        "entryPrice": 24747.72,
+        "sl": 24993.086724,
+        "slDist": 245.36672399999952,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782448200,
+        "brokenLevel": 24757.14,
+        "brokenLevelTime": 1782443700,
+        "level": 24703.04,
+        "entryPrice": 24768.68,
+        "sl": 24658.574528,
+        "slDist": 110.10547199999928,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782453600,
+        "brokenLevel": 24753.31,
+        "brokenLevelTime": 1782449400,
+        "level": 24819.9,
+        "entryPrice": 24796.51,
+        "sl": 24864.575820000002,
+        "slDist": 68.06582000000344,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782457500,
+        "brokenLevel": 24819.9,
+        "brokenLevelTime": 1782451800,
+        "level": 24768.71,
+        "entryPrice": 24794.72,
+        "sl": 24724.126322,
+        "slDist": 70.59367800000109,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782467400,
+        "brokenLevel": 24768.71,
+        "brokenLevelTime": 1782454200,
+        "level": 24818.81,
+        "entryPrice": 24700.98,
+        "sl": 24863.483858,
+        "slDist": 162.50385800000004,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782685200,
+        "brokenLevel": 24710.68,
+        "brokenLevelTime": 1782476100,
+        "level": 24627.27,
+        "entryPrice": 24723.44,
+        "sl": 24582.940914,
+        "slDist": 140.4990859999998,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782697200,
+        "brokenLevel": 24721.08,
+        "brokenLevelTime": 1782687600,
+        "level": 24774.39,
+        "entryPrice": 24730,
+        "sl": 24818.983902,
+        "slDist": 88.98390199999994,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782704100,
+        "brokenLevel": 24738.5,
+        "brokenLevelTime": 1782697200,
+        "level": 24686,
+        "entryPrice": 24738.5,
+        "sl": 24641.5652,
+        "slDist": 96.93479999999909,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782718800,
+        "brokenLevel": 24723.5,
+        "brokenLevelTime": 1782710700,
+        "level": 24792,
+        "entryPrice": 24746.3,
+        "sl": 24836.6256,
+        "slDist": 90.32560000000012,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782736800,
+        "brokenLevel": 24697.88,
+        "brokenLevelTime": 1782732600,
+        "level": 24634.93,
+        "entryPrice": 24677.43,
+        "sl": 24590.587126,
+        "slDist": 86.84287400000176,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782743100,
+        "brokenLevel": 24685.21,
+        "brokenLevelTime": 1782740100,
+        "level": 24723.08,
+        "entryPrice": 24659.07,
+        "sl": 24767.581544,
+        "slDist": 108.51154400000087,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782753900,
+        "brokenLevel": 24670.98,
+        "brokenLevelTime": 1782743100,
+        "level": 24559.07,
+        "entryPrice": 24692.46,
+        "sl": 24514.863674,
+        "slDist": 177.59632599999895,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782781200,
+        "brokenLevel": 24723.97,
+        "brokenLevelTime": 1782762600,
+        "level": 24750.65,
+        "entryPrice": 24706,
+        "sl": 24795.20117,
+        "slDist": 89.20117000000027,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782785700,
+        "brokenLevel": 24750.65,
+        "brokenLevelTime": 1782778500,
+        "level": 24695.08,
+        "entryPrice": 24731.44,
+        "sl": 24650.628856000003,
+        "slDist": 80.81114399999569,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782823800,
+        "brokenLevel": 24955.9,
+        "brokenLevelTime": 1782816600,
+        "level": 25023.79,
+        "entryPrice": 24956.63,
+        "sl": 25068.832822,
+        "slDist": 112.20282199999929,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782832800,
+        "brokenLevel": 24965.9,
+        "brokenLevelTime": 1782823800,
+        "level": 24896.27,
+        "entryPrice": 24979.06,
+        "sl": 24851.456714,
+        "slDist": 127.60328600000139,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782849900,
+        "brokenLevel": 25020.88,
+        "brokenLevelTime": 1782846300,
+        "level": 25042.76,
+        "entryPrice": 25018.89,
+        "sl": 25087.836968,
+        "slDist": 68.9469680000002,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782886800,
+        "brokenLevel": 24998.02,
+        "brokenLevelTime": 1782869400,
+        "level": 24968.01,
+        "entryPrice": 24985.97,
+        "sl": 24923.067582,
+        "slDist": 62.90241800000149,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1782896400,
+        "brokenLevel": 25047.23,
+        "brokenLevelTime": 1782894600,
+        "level": 25093.97,
+        "entryPrice": 25052.33,
+        "sl": 25139.139146,
+        "slDist": 86.8091459999996,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1782924900,
+        "brokenLevel": 25024.7,
+        "brokenLevelTime": 1782909000,
+        "level": 24958.8,
+        "entryPrice": 25044.62,
+        "sl": 24913.87416,
+        "slDist": 130.7458399999996,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783056900,
+        "brokenLevel": 25676.11,
+        "brokenLevelTime": 1783050300,
+        "level": 25718.4,
+        "entryPrice": 25692.17,
+        "sl": 25764.69312,
+        "slDist": 72.52312000000165,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783059600,
+        "brokenLevel": 25718.4,
+        "brokenLevelTime": 1783052100,
+        "level": 25671.81,
+        "entryPrice": 25699.46,
+        "sl": 25625.600742000002,
+        "slDist": 73.85925799999677,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783065300,
+        "brokenLevel": 25698.47,
+        "brokenLevelTime": 1783059600,
+        "level": 25813.72,
+        "entryPrice": 25682.88,
+        "sl": 25860.184696,
+        "slDist": 177.30469599999924,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783084200,
+        "brokenLevel": 25737.26,
+        "brokenLevelTime": 1783066500,
+        "level": 25698.72,
+        "entryPrice": 25753.1,
+        "sl": 25652.462304,
+        "slDist": 100.63769599999796,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783092900,
+        "brokenLevel": 25789.35,
+        "brokenLevelTime": 1783091100,
+        "level": 25830.54,
+        "entryPrice": 25803.75,
+        "sl": 25877.034972,
+        "slDist": 73.28497200000129,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783292400,
+        "brokenLevel": 25830.54,
+        "brokenLevelTime": 1783091700,
+        "level": 25795.98,
+        "entryPrice": 25831.02,
+        "sl": 25749.547236,
+        "slDist": 81.47276400000192,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783299600,
+        "brokenLevel": 25841.34,
+        "brokenLevelTime": 1783295100,
+        "level": 25890,
+        "entryPrice": 25855.5,
+        "sl": 25936.602,
+        "slDist": 81.10199999999895,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783313100,
+        "brokenLevel": 25808.5,
+        "brokenLevelTime": 1783308900,
+        "level": 25779,
+        "entryPrice": 25815,
+        "sl": 25732.5978,
+        "slDist": 82.40220000000045,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783316400,
+        "brokenLevel": 25779,
+        "brokenLevelTime": 1783310100,
+        "level": 25823.5,
+        "entryPrice": 25788.5,
+        "sl": 25869.9823,
+        "slDist": 81.48229999999967,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783325700,
+        "brokenLevel": 25813.5,
+        "brokenLevelTime": 1783321200,
+        "level": 25751.7,
+        "entryPrice": 25859.78,
+        "sl": 25705.34694,
+        "slDist": 154.4330599999994,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783341900,
+        "brokenLevel": 25751.7,
+        "brokenLevelTime": 1783321200,
+        "level": 25783.31,
+        "entryPrice": 25759.24,
+        "sl": 25829.719958,
+        "slDist": 70.4799579999999,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783350600,
+        "brokenLevel": 25761.52,
+        "brokenLevelTime": 1783341900,
+        "level": 25695.84,
+        "entryPrice": 25788.98,
+        "sl": 25649.587488,
+        "slDist": 139.39251199999853,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783378800,
+        "brokenLevel": 25822.12,
+        "brokenLevelTime": 1783371000,
+        "level": 25845.43,
+        "entryPrice": 25830.07,
+        "sl": 25891.951774,
+        "slDist": 61.881774000001315,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783404600,
+        "brokenLevel": 25752.99,
+        "brokenLevelTime": 1783398600,
+        "level": 25726.23,
+        "entryPrice": 25750.72,
+        "sl": 25679.922786,
+        "slDist": 70.79721400000199,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783412100,
+        "brokenLevel": 25756.9,
+        "brokenLevelTime": 1783407600,
+        "level": 25811.14,
+        "entryPrice": 25792.16,
+        "sl": 25857.600051999998,
+        "slDist": 65.4400519999981,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783429500,
+        "brokenLevel": 25677.75,
+        "brokenLevelTime": 1783423200,
+        "level": 25618.92,
+        "entryPrice": 25647.1,
+        "sl": 25572.805944,
+        "slDist": 74.29405599999882,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783434000,
+        "brokenLevel": 25618.92,
+        "brokenLevelTime": 1783425000,
+        "level": 25672.49,
+        "entryPrice": 25508.86,
+        "sl": 25718.700482,
+        "slDist": 209.8404819999996,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bullish",
+        "confirmTime": 1783442400,
+        "brokenLevel": 25519.6,
+        "brokenLevelTime": 1783436100,
+        "level": 25461.42,
+        "entryPrice": 25533.9,
+        "sl": 25415.589443999997,
+        "slDist": 118.310556000004,
+        "outcomes": {
+          "1": "sl_hit",
+          "2": "sl_hit",
+          "3": "sl_hit",
+          "1.5": "sl_hit"
+        }
+      },
+      {
+        "timeframe": "5m",
+        "direction": "bearish",
+        "confirmTime": 1783452300,
+        "brokenLevel": 25539.47,
+        "brokenLevelTime": 1783446600,
+        "level": 25552.44,
+        "entryPrice": 25452.57,
+        "sl": 25598.434392,
+        "slDist": 145.8643919999995,
+        "outcomes": {
+          "1": "target_hit",
+          "2": "target_hit",
+          "3": "target_hit",
+          "1.5": "target_hit"
+        }
+      }
+    ]
+  }
+}

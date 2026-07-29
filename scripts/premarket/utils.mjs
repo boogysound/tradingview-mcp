@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { healthCheck, launch } from '../../src/core/health.js';
 import { setTimeframe } from '../../src/core/chart.js';
-import { getOhlcv } from '../../src/core/data.js';
+import { getOhlcv, getStudyValues } from '../../src/core/data.js';
 
 // ---------- BERLIN TIME UTILITIES ----------
 // Rewritten 28.07.2026 — the previous getBerlinTime() constructed a German-
@@ -215,6 +215,41 @@ export async function fetchBars(tf, count = 500) {
     }
   }
   throw new Error(`fetchBars(${tf}) nach 3 Versuchen fehlgeschlagen: ${lastErr?.message}`);
+}
+
+// TradingView renders data-window numbers in the chart's display locale
+// (German here: "." as thousands separator, "," as decimal) — parse back to
+// a plain float.
+function parseDeNumber(s) {
+  if (s == null) return null;
+  const n = Number(String(s).replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+// Reads the user's own, already-active TradingView indicators — "VWAP Auto
+// Anchored" and "ORB" (a public Pine script, session-configurable, currently
+// 09:00-09:30) — rather than recomputing them independently, so the briefing
+// always matches exactly what the user sees on their own chart. User-
+// specified, 28.07.2026: these + PDH/PDL/zones/FVGs are what they build
+// their daily discretionary plan from, so the 09:20 briefing should
+// reference them. Only reliably readable while the chart is on the 5m
+// resolution (user-confirmed) — call this right after fetchBars(5, ...),
+// before anything switches the chart away. Returns nulls (not a throw) if
+// either indicator isn't present, so a chart without them doesn't break the
+// rest of the briefing.
+export async function readOrbVwap() {
+  try {
+    const { studies } = await getStudyValues();
+    const vwapStudy = (studies || []).find(s => /vwap/i.test(s.name));
+    const orbStudy = (studies || []).find(s => /^orb\b/i.test(s.name));
+    return {
+      vwap: vwapStudy ? parseDeNumber(vwapStudy.values?.VWAP) : null,
+      orbHigh: orbStudy ? parseDeNumber(orbStudy.values?.['ORB High']) : null,
+      orbLow: orbStudy ? parseDeNumber(orbStudy.values?.['ORB Low']) : null,
+    };
+  } catch {
+    return { vwap: null, orbHigh: null, orbLow: null };
+  }
 }
 
 export async function retry(fn, maxAttempts = 3, delayMs = 1000) {

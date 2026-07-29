@@ -33,7 +33,7 @@ const { findConfirmation5m } = lib;
 // opposing level/PDHL boundary gets rejected. Each carries an explicit
 // confluence checklist (met vs pending) rather than a single collapsed
 // number, since a scenario is inherently partly-unconfirmed by definition.
-function buildScenario({ type, label, direction, zonePrice, sl, targets, checklist, regime, reversalObs }) {
+function buildScenario({ type, label, direction, zonePrice, sl, targets, checklist, regime, reversalObs, zoneBrokenNoRetest }) {
   const metCount = checklist.filter(c => c.met).length;
   const totalCount = checklist.length;
   const probability = metCount >= totalCount - 1 ? 'B+' : metCount >= totalCount - 2 ? 'B' : 'C';
@@ -42,69 +42,207 @@ function buildScenario({ type, label, direction, zonePrice, sl, targets, checkli
   const oppositeType = direction === 'LONG' ? 'bearish' : 'bullish';
   const warningOb = (reversalObs || []).find(o => o.type === oppositeType &&
     Math.abs((o.low + o.high) / 2 - zonePrice) < Math.abs(zonePrice) * 0.01);
-  return { type, label, direction, zonePrice, sl, targets, checklist, metCount, totalCount, probability, regime, warningOb };
+  return { type, label, direction, zonePrice, sl, targets, checklist, metCount, totalCount, probability, regime, warningOb, zoneBrokenNoRetest: !!zoneBrokenNoRetest };
 }
 
-export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs }) {
-  if (!htfBias) return [];
-  const bull = htfBias === 'bullish';
+export function buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs, aHtfBias, activeLevels12h, srLevels, fvgs12h, fvgs4h }) {
   const scenarios = [];
 
-  // Scenario A: REMOVED (08.07.2026)
-  // Trend-Bounce against intraday pressure was structurally unprofitable in 6M
-  // backtest: all 9 parameter combinations tested negative (−0.11R to −0.42R).
-  // Grade filters and SL-buffer variations provided no salvage. The setup simply
-  // does not work in this market regime. Dead code.
-
-  // Scenario B: counter-trend continuation — pullback into an opposing 4H
-  // level or the PDHL boundary against the trend gets rejected. After backtest:
-  // original targets were far (RR >> 8) and almost never hit — switch to fixed 2R.
-  // Original buffer (0.0006) was too tight, doubled to 0.0012.
-  // Jul 2026: Parameter-Sweep showed 0.0018 buffer + 3× target optimal:
-  // 83.9% WR, +2.35R ExpR (+1.13R over baseline). Broader buffer filters
-  // Fake-Out spikes; higher target leverages better SL/distance ratio.
+  // Scenario A: Trend-Reversal-Fade an POI — komplett neu konzipiert,
+  // 28.07.2026 (User-Vorgabe, ersetzt das alte "Trend-Bounce"-Design, das im
+  // 6-Monats-Backtest strukturell unprofitabel war — alle 9 Parameter-
+  // Kombinationen negativ, −0.11R bis −0.42R, kein Salvage-Weg gefunden).
   //
-  // 1H-MS-Kontext-Filter (09.07.2026): cross-referenced every historical B
-  // trade (451 resolved, 6-Monats-Log) against the 1H detectMarketShift
-  // state at that moment. Counter-intuitive result — trades where the 1H MS
-  // CONFIRMS the SAME direction as htfBias (trend intact, no reversal signal
-  // yet) outperform trades where the 1H MS already confirms AGAINST htfBias
-  // (a genuine reversal already under way): 91.8% WR/+2.67R vs. 85.1%
-  // WR/+2.41R. A cleanly intact trend makes the zone-rejection this scenario
-  // bets on more reliable than an already-destabilizing one — the opposite
-  // of the initial hypothesis (that 1H agreeing with B's OWN countertrend
-  // direction would help), which the data flatly rejected. Both cohorts are
-  // still strongly profitable; this is a confidence signal, not a filter
-  // that should block the trade.
+  // Neue Hierarchie (User-spezifiziert): Trend auf 1H (nicht 4H — bewusst
+  // getrennt von B/D's 4H-Trend), POI-Pool aus 12H+4H S/D-Zonen UND S/R-
+  // Linien, Entry-Trigger ist ein Market Shift ODER Liquidity Sweep auf 5m
+  // in Reversal-Richtung nahe der POI, PLUS die aktuelle 5m-Kerze muss selbst
+  // eine Reaktionskerze in diese Richtung sein (steht für den vom User
+  // gewünschten 1m-Entry — TradingViews 1m-Historie reicht nur 16 Tage
+  // zurück, zu wenig für einen Backtest; 5m als Näherung User-bestätigt,
+  // 28.07.2026). Order Block + FVG (12H/4H/15m) sind Bonus-Konfluenz, keine
+  // Voraussetzung — "mehr Konfluenz = besser" (User-Vorgabe, im Gegensatz zu
+  // B's invertierter Fresh-Zone-Logik). Ziel: R:R >= 2, immer auf die
+  // nächste reale Zone in Trendrichtung, kein fixer Multiplikator.
+  //
+  // Backtest (28.07.2026, ~2 Monate Stichprobe — TradingViews 5m-Historie
+  // reicht nur bis 31.05.2026 zurück, deutlich kürzer als B's 6 Monate):
+  // 34,9% WR, +0,13R ExpR über 60 aufgelöste Trades, in beiden getesteten
+  // Monaten positiv (+0,12R Juni, +0,14R Juli) — moderat, nicht so stark
+  // validiert wie B, aber ein echtes, konsistentes Signal. Dieselbe
+  // Konfluenz-Inversion wie bei B zeigte sich auch hier (Confluence=1 lief
+  // mit +0,46R besser als Confluence=3 mit −0,31R) — User entschied sich
+  // trotzdem für die Gesamt-Version (nicht auf Confluence=1 einschränken),
+  // um die größere, robustere Stichprobe zu behalten.
+  if (aHtfBias) {
+    const aBull = aHtfBias === 'bullish';
+    if (shortTermBias && shortTermBias !== aHtfBias) {
+      const aSdLevels = [...(activeLevels12h || []), ...(activeLevels4h || [])]
+        .filter(l => l.type === (aBull ? 'demand' : 'supply'))
+        .map(l => l.price);
+      const aSrLevels = (srLevels || [])
+        .filter(l => l.type === (aBull ? 'support' : 'resistance'))
+        .map(l => l.price);
+      const aPoiPool = [...aSdLevels, ...aSrLevels].filter(p => (aBull ? p < lastClose : p > lastClose));
+      if (aPoiPool.length) {
+        const aNearestPOI = aPoiPool.sort((x, y) => (aBull ? y - x : x - y))[0];
+        const aPoiTolerance = tacticalAtr ? tacticalAtr * 1.5 : Math.abs(aNearestPOI) * 0.0015;
+        const aNearPOI = (lvl) => lvl != null && Math.abs(lvl - aNearestPOI) <= aPoiTolerance;
+        const aReversalDir = aBull ? 'bullish' : 'bearish';
+        const A_REACTION_MAX_AGE_SEC = 4 * 3600;
+
+        const aMs5m = (bars5 && bars5.length >= 20) ? lib.detectMarketShift(bars5, 2) : { status: 'none' };
+        const aMsSignal = aMs5m.status === 'confirmed' && aMs5m.direction === aReversalDir &&
+          nowSec != null && (nowSec - aMs5m.break_time) <= A_REACTION_MAX_AGE_SEC && aNearPOI(aMs5m.brokenLevel?.price);
+        const aSweep5m = (bars5 && bars5.length)
+          ? lib.findSweepMSS(bars5, 2, 10).filter(s => nowSec != null && (nowSec - s.mssTime) <= A_REACTION_MAX_AGE_SEC).pop()
+          : null;
+        const aSweepSignal = !!(aSweep5m && aSweep5m.type === aReversalDir && (aNearPOI(aSweep5m.sweptLevel) || aNearPOI(aSweep5m.mssLevel)));
+
+        if ((aMsSignal || aSweepSignal) && bars5 && bars5.length) {
+          const aCurrentBar5m = bars5[bars5.length - 1];
+          const aEntryConfirmed = aReversalDir === 'bullish' ? aCurrentBar5m.close > aCurrentBar5m.open : aCurrentBar5m.close < aCurrentBar5m.open;
+
+          if (aEntryConfirmed) {
+            const aBos5m = lib.findBosEvents(bars5);
+            const aObs5m = lib.findOrderBlocks(bars5, aBos5m).filter(o => !o.mitigated);
+            const aObConfirm = aObs5m.some(o => o.type === aReversalDir && aNearPOI((o.low + o.high) / 2));
+            const aFvgSources = [...(fvgs12h || []), ...(fvgs4h || []), ...(fvgsTactical || [])];
+            const aFvgConfirm = aFvgSources.some(g => g.type === aReversalDir && aNearPOI((g.low + g.high) / 2));
+
+            const aBuffer = tacticalAtr ? tacticalAtr * 0.5 : Math.abs(aNearestPOI) * 0.0015;
+            const aSl = aBull ? aNearestPOI - aBuffer : aNearestPOI + aBuffer;
+            const aSlDist = Math.abs(aNearestPOI - aSl);
+            const aTargetPool = [...aSdLevels, ...aSrLevels]
+              .filter(p => (aBull ? p > aNearestPOI : p < aNearestPOI))
+              .filter(p => Math.abs(p - aNearestPOI) / aSlDist >= 2)
+              .sort((x, y) => Math.abs(x - aNearestPOI) - Math.abs(y - aNearestPOI));
+            const aTarget = aTargetPool.length ? aTargetPool[0] : (aBull ? aNearestPOI + 2 * aSlDist : aNearestPOI - 2 * aSlDist);
+
+            scenarios.push(buildScenario({
+              type: 'trend_reversal_poi',
+              label: `${aBull ? 'Long' : 'Short'} Reversal an POI ${aNearestPOI.toFixed(1)}`,
+              direction: aBull ? 'LONG' : 'SHORT',
+              zonePrice: aNearestPOI,
+              sl: aSl,
+              targets: [aTarget],
+              checklist: [
+                { label: `1H-Trend: ${aBull ? 'bullisch' : 'bärisch'}`, met: true },
+                { label: `POI erreicht (${aNearestPOI.toFixed(1)})`, met: true },
+                { label: aMsSignal ? 'Market Shift bestätigt Reversal (5m)' : 'Liquidity Sweep bestätigt Reversal (5m)', met: true },
+                { label: 'Order Block als Konfirmation', met: aObConfirm },
+                { label: 'FVG als Konfirmation', met: aFvgConfirm },
+              ],
+              regime,
+              reversalObs,
+            }));
+          }
+        }
+      }
+    }
+  }
+
+  if (!htfBias) return scenarios;
+  const bull = htfBias === 'bullish';
+
+  // Scenario B: counter-trend fade at a FRESH (not-yet-tested) opposing 4H
+  // level or PDHL boundary. Redesigned 28.07.2026 after a full, corrected
+  // 6-month re-backtest (see STRATEGIE_OPTIMIERUNG_HANDOVER.md, Teil 4/5):
+  //
+  // The pre-28.07.2026 design (enter regardless of prior reaction, 3R
+  // target, "more confluence = higher grade") had two independent problems:
+  // 1. A target-price sign bug (fixed 28.07.2026 morning) meant the reported
+  //    87.8% WR / +2.37R was a measurement artifact — every touched trade
+  //    scored as an instant win regardless of real price action.
+  // 2. Once that was fixed, the REAL win-rate over 285 trades (Feb-Jul 2026,
+  //    live-fetched history) was 24.6% / -0.02R — essentially zero edge —
+  //    AND grade was INVERTED (B+ scenarios performed worse than C: 15.9%
+  //    WR/-0.37R vs 32.8% WR/+0.31R). Root cause: "high confluence" meant
+  //    a rejection/MSS/confirmation had ALREADY happened before the zone
+  //    even qualified as a candidate — i.e., the level had already been
+  //    actively tested and reacted to. Classic TA: a level's FIRST test is
+  //    stronger than a retest: by the time all 3 reaction checks fire, the
+  //    zone is already partially "used up".
+  //
+  // Fix: flip the premise. Only take FRESH zones — no rejection, no MSS, no
+  // 5min reaction detected yet — with a 1:1 R:R exit instead of 3:1.
+  // Fresh-zone-only alone (no alignment filter) already re-backtests to
+  // 70.7% WR/+0.41R over 58 trades, positive or flat in all 6 of 6 months
+  // tested (no single outlier month driving it, unlike a session-only
+  // filter variant that was also tried and rejected for exactly that
+  // instability). Adding momentum-alignment (shortTermBias === htfBias,
+  // below) narrows the sample to 33 trades but improves it further: 75.8%
+  // WR, +0.52R ExpR — user-selected trade-off (smaller but stronger sample)
+  // over the unfiltered 58-trade baseline.
   const htfMsConfirmsTrend = !!(htfMs && htfMs.status === 'confirmed' && htfMs.direction === htfBias);
   const counterLevels = activeLevels4h.filter(l => l.type === (bull ? 'supply' : 'demand'));
   const pdBoundary = bull ? (pdhl && pdhl.pdl) : (pdhl && pdhl.pdh);
   const counterPool = [...counterLevels.map(l => l.price), ...(pdBoundary != null ? [pdBoundary] : [])]
     .filter(p => (bull ? p > lastClose : p < lastClose));
-  if (counterPool.length) {
+  if (counterPool.length && shortTermBias && shortTermBias === htfBias) {
     const nearestCounter = counterPool.sort((a, b) => (bull ? a - b : b - a))[0];
     const buffer = Math.abs(nearestCounter) * 0.0018;
     const sl = bull ? nearestCounter + buffer : nearestCounter - buffer;
     const slDist = Math.abs(nearestCounter - sl);
-    const targets = [bull ? nearestCounter + 3 * slDist : nearestCounter - 3 * slDist];
+    // 1:1 R:R (was 3:1) — see redesign note above. Target sits on the
+    // OPPOSITE side of entry from SL: bull(SHORT) falls, target BELOW
+    // entry; !bull(LONG) rises, target ABOVE entry.
+    const targets = [bull ? nearestCounter - slDist : nearestCounter + slDist];
 
-    scenarios.push(buildScenario({
-      type: 'counter_trend',
-      label: `${bull ? 'Short' : 'Long'} Continuation bei Pullback in ${nearestCounter.toFixed(1)}`,
-      direction: bull ? 'SHORT' : 'LONG',
-      zonePrice: nearestCounter,
-      sl,
-      targets,
-      checklist: [
-        { label: `Gegentrend-Level/PDHL-Grenze (${nearestCounter.toFixed(1)})`, met: true },
-        { label: 'Rejection an der Zone', met: false },
-        { label: 'MSS in Gegenrichtung', met: false },
-        { label: '5min-Bestätigung', met: false },
-        { label: `1H-MS bestätigt intakten ${bull ? 'bullish' : 'bearish'}-Trend`, met: htfMsConfirmsTrend },
-      ],
-      regime,
-      reversalObs,
-    }));
+    // Freshness checks — B's trade direction is bull?SHORT:LONG, so the
+    // reaction we're checking FOR (and now require to be ABSENT) is
+    // bearish/bullish respectively (matching findBosEvents' type field,
+    // used consistently across findZoneRejection/findSweepMSS/
+    // findConfirmation5m). Freshness window: one trading session (8h), not
+    // the wider 2-day "tactical recentEnough" convention used for OB/FVG/
+    // sweepMss elsewhere — an 8h-old reaction is still a real prior test of
+    // this zone. MSS additionally requires proximity to the zone itself
+    // (swept/mss level within 1.5x tactical ATR of nearestCounter), not just
+    // matching direction from anywhere on the chart (live-caught bug,
+    // 28.07.2026: a "confirming" MSS was once 87-146 points away from the
+    // actual zone).
+    const reactionDirection = bull ? 'bearish' : 'bullish';
+    const CONFLUENCE_MAX_AGE_SEC = 8 * 3600;
+    const zoneRejection = (bars5 && bars5.length)
+      ? lib.findZoneRejection(bars5, nearestCounter, reactionDirection, { nowSec, maxAgeSec: CONFLUENCE_MAX_AGE_SEC })
+      : { rejected: false };
+    const mssProximityTolerance = tacticalAtr ? tacticalAtr * 1.5 : Math.abs(nearestCounter) * 0.0015;
+    const mssNearZone = (level) => level != null && Math.abs(level - nearestCounter) <= mssProximityTolerance;
+    const mssAgainstTrend = !!(sweepMss && sweepMss.type === reactionDirection &&
+      (nowSec - sweepMss.mssTime) <= CONFLUENCE_MAX_AGE_SEC &&
+      (mssNearZone(sweepMss.sweptLevel) || mssNearZone(sweepMss.mssLevel)));
+    const confirmation5m = (bars5 && bars5.length)
+      ? findConfirmation5m(bars5, nearestCounter - buffer, nearestCounter + buffer, reactionDirection, { nowSec, maxAgeSec: CONFLUENCE_MAX_AGE_SEC })
+      : { confirmed: false };
+    const isFresh = !zoneRejection.rejected && !mssAgainstTrend && !confirmation5m.confirmed;
+
+    // Only take the trade if the zone is genuinely untested — this IS the
+    // edge (see redesign note above), not an optional confluence add-on.
+    if (isFresh) {
+      // Once drawn, the line is invalidated if price later closes through
+      // the zone without ever showing a rejection/confirmation — same
+      // detectors, just checked again against current price at draw time.
+      const zoneBrokenNoRetest = (bull ? lastClose > nearestCounter : lastClose < nearestCounter) &&
+        !zoneRejection.rejected && !confirmation5m.confirmed;
+
+      scenarios.push(buildScenario({
+        type: 'counter_trend',
+        label: `${bull ? 'Short' : 'Long'} Fade an frischer Zone ${nearestCounter.toFixed(1)}`,
+        direction: bull ? 'SHORT' : 'LONG',
+        zonePrice: nearestCounter,
+        sl,
+        targets,
+        checklist: [
+          { label: `Gegentrend-Level/PDHL-Grenze (${nearestCounter.toFixed(1)})`, met: true },
+          { label: 'Frische Zone (noch keine Rejection/MSS/Bestätigung)', met: isFresh },
+          { label: 'Kurzfristiges Momentum bestätigt Trendrichtung', met: true },
+          { label: `1H-MS bestätigt intakten ${bull ? 'bullish' : 'bearish'}-Trend`, met: htfMsConfirmsTrend },
+        ],
+        regime,
+        reversalObs,
+        zoneBrokenNoRetest,
+      }));
+    }
   }
 
   // Scenario C: pure momentum continuation in the SHORT-TERM direction,
@@ -302,8 +440,8 @@ function describeMarketNarrative(htfBias, lastBosTrend, premiumDiscount, activeL
 // Coach-voice intro/outro, but facts in between as scannable bullets — the
 // user tried prose-only for the checklist and asked for the bullets +
 // colored-emoji checklist back, keeping the direct, personal framing.
-function describeScenario(s, idx) {
-  const typeLabel = s.type === 'counter_trend' ? 'B: Gegentrend-Fade' : s.type === 'consolidation_breakout' ? 'D: Konsolidierungs-Breakout' : `Typ: ${s.type}`;
+export function describeScenario(s, idx) {
+  const typeLabel = s.type === 'trend_reversal_poi' ? 'A: Trend-Reversal an POI' : s.type === 'counter_trend' ? 'B: Gegentrend-Fade' : s.type === 'consolidation_breakout' ? 'D: Konsolidierungs-Breakout' : `Typ: ${s.type}`;
   const dirWord = s.direction === 'LONG' ? 'Long' : 'Short';
   const ratingText = s.probability === 'B+'
     ? 'Solide Chance, wenn die Bestätigung kommt.'
@@ -335,7 +473,28 @@ function describeScenario(s, idx) {
 // MARKTLAGE block. Scenario planning / no-trade zones / session-based action
 // plan are deliberately NOT here yet — those need new detection (Sweep+MSS)
 // and session-window definitions that don't exist yet; next steps.
-export function buildBriefing({ regime, htfBias, lastBosTrend, shortTermBias, premiumDiscount, activeLevels4h, scenarios, lastClose, dataWarnings, dateDisplay, timeDisplay, session, observe12h, observe4h, observeTactical }) {
+// User's own ORB (session-configurable, currently 09:00-09:30) and "VWAP
+// Auto Anchored" indicators, read directly off their chart (not
+// recomputed) — user-specified, 28.07.2026: these + PDH/PDL/zones/FVGs are
+// what they build their daily discretionary plan from every morning.
+function describeOrbVwap(orbVwap, lastClose) {
+  if (!orbVwap || (orbVwap.vwap == null && orbVwap.orbHigh == null)) return null;
+  const parts = [];
+  if (orbVwap.orbHigh != null && orbVwap.orbLow != null) {
+    const range = orbVwap.orbHigh - orbVwap.orbLow;
+    const position = lastClose > orbVwap.orbHigh ? 'über der ORB-Range (Breakout nach oben)'
+      : lastClose < orbVwap.orbLow ? 'unter der ORB-Range (Breakout nach unten)'
+      : 'innerhalb der ORB-Range';
+    parts.push(`ORB: Hoch ${orbVwap.orbHigh.toFixed(1)}, Tief ${orbVwap.orbLow.toFixed(1)} (Range ${range.toFixed(1)} Pkt) — Kurs aktuell ${position}.`);
+  }
+  if (orbVwap.vwap != null) {
+    const diff = lastClose - orbVwap.vwap;
+    parts.push(`VWAP: ${orbVwap.vwap.toFixed(1)} — Kurs ${diff >= 0 ? diff.toFixed(1) + ' Pkt darüber' : Math.abs(diff).toFixed(1) + ' Pkt darunter'}.`);
+  }
+  return parts.join(' ');
+}
+
+export function buildBriefing({ regime, htfBias, lastBosTrend, shortTermBias, premiumDiscount, activeLevels4h, scenarios, lastClose, dataWarnings, dateDisplay, timeDisplay, session, observe12h, observe4h, observeTactical, orbVwap }) {
   const lines = [];
   const sessionNote = session
     ? (session.inWindow ? `Aktuelle Phase: ${session.label}.` : 'Du bist aktuell außerhalb deiner Handelsfenster — gute Gelegenheit, dich in Ruhe vorzubereiten.')
@@ -349,7 +508,7 @@ export function buildBriefing({ regime, htfBias, lastBosTrend, shortTermBias, pr
   }
 
   lines.push('So sieht der Markt gerade aus:');
-  [describeObserve12h(observe12h), describeObserve4h(observe4h), describeObserveTactical(observeTactical)]
+  [describeObserve12h(observe12h), describeObserve4h(observe4h), describeObserveTactical(observeTactical), describeOrbVwap(orbVwap, lastClose)]
     .filter(Boolean)
     .forEach(l => lines.push(l));
   lines.push('');

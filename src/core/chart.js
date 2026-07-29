@@ -214,6 +214,24 @@ export async function setVisibleRange({ from, to, _deps }) {
   return { success: true, requested: { from, to }, actual: actual || { from: 0, to: 0 } };
 }
 
+// setVisibleRange/scrollToDate both clamp `to` to the last real bar's index —
+// there's no bar beyond "now" for them to target, so neither can open up
+// empty space on the right for annotations drawn into the future (e.g. a
+// coach's hand-drawn scenario path). timeScale().setRightOffset() bypasses
+// that — it's a raw bar-count margin, independent of what data exists.
+export async function setRightOffset({ bars, _deps } = {}) {
+  const { evaluate } = _resolve(_deps);
+  const n = requireFinite(bars, 'bars');
+  const result = await evaluate(`
+    (function() {
+      var ts = ${CHART_API}._chartWidget.model().timeScale();
+      ts.setRightOffset(${n});
+      return { rightOffset: ts.rightOffset() };
+    })()
+  `);
+  return { success: true, rightOffset: result.rightOffset };
+}
+
 export async function scrollToDate({ date, _deps } = {}) {
   const { evaluate } = _resolve(_deps);
   let timestamp;

@@ -1,0 +1,134 @@
+{
+  "slBuf=0.0018_tgt=3.0": {
+    "total": 1078,
+    "wins": 810,
+    "losses": 156,
+    "resolved": 966,
+    "wr": 83.9,
+    "expR": 2.35,
+    "steps": 1258,
+    "slBuffer": 0.0018,
+    "targetRr": 3
+  },
+  "slBuf=0.0012_tgt=3.0": {
+    "total": 1078,
+    "wins": 715,
+    "losses": 251,
+    "resolved": 966,
+    "wr": 74,
+    "expR": 1.96,
+    "steps": 1258,
+    "slBuffer": 0.0012,
+    "targetRr": 3
+  },
+  "slBuf=0.0018_tgt=2.5": {
+    "total": 1078,
+    "wins": 810,
+    "losses": 156,
+    "resolved": 966,
+    "wr": 83.9,
+    "expR": 1.93,
+    "steps": 1258,
+    "slBuffer": 0.0018,
+    "targetRr": 2.5
+  },
+  "slBuf=0.0012_tgt=2.5": {
+    "total": 1078,
+    "wins": 715,
+    "losses": 251,
+    "resolved": 966,
+    "wr": 74,
+    "expR": 1.59,
+    "steps": 1258,
+    "slBuffer": 0.0012,
+    "targetRr": 2.5
+  },
+  "slBuf=0.0018_tgt=2.0": {
+    "total": 1078,
+    "wins": 810,
+    "losses": 156,
+    "resolved": 966,
+    "wr": 83.9,
+    "expR": 1.52,
+    "steps": 1258,
+    "slBuffer": 0.0018,
+    "targetRr": 2
+  },
+  "slBuf=0.0012_tgt=2.0": {
+    "total": 1078,
+    "wins": 715,
+    "losses": 251,
+    "resolved": 966,
+    "wr": 74,
+    "expR": 1.22,
+    "steps": 1258,
+    "slBuffer": 0.0012,
+    "targetRr": 2
+  },
+  "slBuf=0.0018_tgt=1.5": {
+    "total": 1078,
+    "wins": 810,
+    "losses": 156,
+    "resolved": 966,
+    "wr": 83.9,
+    "expR": 1.1,
+    "steps": 1258,
+    "slBuffer": 0.0018,
+    "targetRr": 1.5
+  },
+  "slBuf=0.0006_tgt=3.0": {
+    "total": 1078,
+    "wins": 488,
+    "losses": 478,
+    "resolved": 966,
+    "wr": 50.5,
+    "expR": 1.02,
+    "steps": 1258,
+    "slBuffer": 0.0006,
+    "targetRr": 3
+  },
+  "slBuf=0.0012_tgt=1.5": {
+    "total": 1078,
+    "wins": 715,
+    "losses": 251,
+    "resolved": 966,
+    "wr": 74,
+    "expR": 0.85,
+    "steps": 1258,
+    "slBuffer": 0.0012,
+    "targetRr": 1.5
+  },
+  "slBuf=0.0006_tgt=2.5": {
+    "total": 1078,
+    "wins": 488,
+    "losses": 478,
+    "resolved": 966,
+    "wr": 50.5,
+    "expR": 0.77,
+    "steps": 1258,
+    "slBuffer": 0.0006,
+    "targetRr": 2.5
+  },
+  "slBuf=0.0006_tgt=2.0": {
+    "total": 1078,
+    "wins": 488,
+    "losses": 478,
+    "resolved": 966,
+    "wr": 50.5,
+    "expR": 0.52,
+    "steps": 1258,
+    "slBuffer": 0.0006,
+    "targetRr": 2
+  },
+  "slBuf=0.0006_tgt=1.5": {
+    "total": 1078,
+    "wins": 488,
+    "losses": 478,
+    "resolved": 966,
+    "wr": 50.5,
+    "expR": 0.26,
+    "steps": 1258,
+    "slBuffer": 0.0006,
+    "targetRr": 1.5
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "grade=B_and_higher_slBuf=0.20": {
+    "total": 921,
+    "wins": 389,
+    "losses": 454,
+    "resolved": 843,
+    "wr": 46.1,
+    "expR": -0.11,
+    "gradeFilter": "B_and_higher",
+    "slBufferMult": 0.2
+  },
+  "grade=B+_only_slBuf=0.20": {
+    "total": 594,
+    "wins": 254,
+    "losses": 293,
+    "resolved": 547,
+    "wr": 46.4,
+    "expR": -0.13,
+    "gradeFilter": "B+_only",
+    "slBufferMult": 0.2
+  },
+  "grade=all_slBuf=0.20": {
+    "total": 1218,
+    "wins": 515,
+    "losses": 604,
+    "resolved": 1119,
+    "wr": 46,
+    "expR": -0.13,
+    "gradeFilter": "all",
+    "slBufferMult": 0.2
+  },
+  "grade=B_and_higher_slBuf=0.15": {
+    "total": 939,
+    "wins": 297,
+    "losses": 562,
+    "resolved": 859,
+    "wr": 34.6,
+    "expR": -0.25,
+    "gradeFilter": "B_and_higher",
+    "slBufferMult": 0.15
+  },
+  "grade=all_slBuf=0.15": {
+    "total": 1218,
+    "wins": 387,
+    "losses": 732,
+    "resolved": 1119,
+    "wr": 34.6,
+    "expR": -0.26,
+    "gradeFilter": "all",
+    "slBufferMult": 0.15
+  },
+  "grade=B+_only_slBuf=0.15": {
+    "total": 598,
+    "wins": 197,
+    "losses": 345,
+    "resolved": 542,
+    "wr": 36.3,
+    "expR": -0.29,
+    "gradeFilter": "B+_only",
+    "slBufferMult": 0.15
+  },
+  "grade=all_slBuf=0.10": {
+    "total": 1218,
+    "wins": 256,
+    "losses": 863,
+    "resolved": 1119,
+    "wr": 22.9,
+    "expR": -0.37,
+    "gradeFilter": "all",
+    "slBufferMult": 0.1
+  },
+  "grade=B_and_higher_slBuf=0.10": {
+    "total": 947,
+    "wins": 193,
+    "losses": 673,
+    "resolved": 866,
+    "wr": 22.3,
+    "expR": -0.41,
+    "gradeFilter": "B_and_higher",
+    "slBufferMult": 0.1
+  },
+  "grade=B+_only_slBuf=0.10": {
+    "total": 595,
+    "wins": 116,
+    "losses": 438,
+    "resolved": 554,
+    "wr": 20.9,
+    "expR": -0.42,
+    "gradeFilter": "B+_only",
+    "slBufferMult": 0.1
+  }
+}

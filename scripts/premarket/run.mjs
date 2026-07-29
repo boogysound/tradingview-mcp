@@ -5,11 +5,12 @@ import { captureScreenshot } from '/Users/boogy/tradingview-mcp/src/core/capture
 import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
-import { getBerlinHour, fetchBars, sleep } from './utils.mjs';
-import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds } from './draw.mjs';
+import { getBerlinHour, fetchBars, sleep, readOrbVwap } from './utils.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioLevels } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
 import { checkAndAlertMarketShifts } from './ms_alerts.mjs';
+import { checkAndAlertFullConfluence } from './scenario_alerts.mjs';
 
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
 
@@ -65,6 +66,12 @@ async function main() {
   let bars5 = [];
   try { bars5 = await fetchBars(5, 500); } catch (e) { dataWarnings.push(`5min-Bars für Entry-Bestätigung nicht verfügbar: ${e.message}`); }
 
+  // User's own ORB + VWAP indicators (already active on their chart) — must
+  // be read HERE, right after the 5m fetch, before dailyBars below switches
+  // the chart away to 'D' (user-confirmed: only reliably readable on 5m).
+  let orbVwap = { vwap: null, orbHigh: null, orbLow: null };
+  try { orbVwap = await readOrbVwap(); } catch (e) { dataWarnings.push(`ORB/VWAP nicht lesbar: ${e.message}`); }
+
   let dailyBars = null;
   try { dailyBars = await fetchBars('D', 60); } catch (e) { dataWarnings.push(`Daily-Bars für Overnight-Gap nicht verfügbar: ${e.message}`); }
 
@@ -98,6 +105,7 @@ async function main() {
   // --- 2. swings + 3. MSS/BOS per timeframe ---
   const bos12h = lib.findBosEvents(bars12h);
   const bos4h = lib.findBosEvents(bars4h);
+  const bos1h = lib.findBosEvents(bars1h);
   const bosTactical = lib.findBosEvents(tacticalBars);
 
   // --- 6. S/D zones (HTF) ---
@@ -162,9 +170,12 @@ async function main() {
   // accumulate into a dense "wall" that then blocked almost every 4H
   // candidate via the near12h check below (found via live debugging: 33
   // relevant 4H candidates, 0 survived near12h). Self-dedupe: skip a fresh
-  // 12H candidate if an existing active 12H level of the same type is
-  // already within the same tolerance.
-  const near12hSelf = (lvl) => existing12hPrices.some(l12 => l12.type === lvl.type && Math.abs(l12.price - lvl.price) <= l12.price * NEAR_12H_PCT);
+  // 12H candidate if an existing active 12H level is already within the same
+  // tolerance. Deliberately type-agnostic (demand vs. supply, not just
+  // demand-vs-demand): a Demand and a Supply level 2pts apart are just as
+  // redundant/confusing on the chart as two Demands would be — same fix as
+  // the cross-type case found live on 4H, 29.07.2026 (see near4hSelf below).
+  const near12hSelf = (lvl) => existing12hPrices.some(l12 => Math.abs(l12.price - lvl.price) <= l12.price * NEAR_12H_PCT);
   const sdLevels12h = lib.findSDLevels(bars12h, { nowSec }).filter(levelIsRelevant).filter(lvl => !alreadyTracked(lvl, 720)).filter(lvl => !near12hSelf(lvl));
   // 12H takes priority over 4H (user-specified): a 4H level within 0.4% of an
   // existing/new 12H level of the same type is redundant — the 12H is the
@@ -175,7 +186,22 @@ async function main() {
   // from sdLevels12h by this point, so they'd otherwise be invisible here).
   const all12hLevels = [...sdLevels12h, ...existing12hPrices];
   const near12h = (lvl) => all12hLevels.some(l12 => l12.type === lvl.type && Math.abs(l12.price - lvl.price) <= l12.price * NEAR_12H_PCT);
-  const sdLevels4h = lib.findSDLevels(bars4h, { nowSec }).filter(levelIsRelevant).filter(lvl => !alreadyTracked(lvl, 240)).filter(lvl => !near12h(lvl));
+  // 4H levels had the exact same self-dedupe gap 12H had before near12hSelf was
+  // added above — user-reported live, 29.07.2026: two active 4H levels at
+  // 25511.78 (Supply) and 25509.71 (Demand), only 2pts apart. Both render in
+  // the same orange (sd_level_4h color is keyed by timeframe, not type — see
+  // draw.mjs COLORS), so on the chart they read as indistinguishable clutter
+  // regardless of the actual demand/supply label. Same fix, same tolerance,
+  // deliberately type-agnostic for the same reason as near12hSelf above: skip
+  // a fresh 4H candidate if ANY existing active 4H level (demand OR supply)
+  // is already within range (the post-hoc cleanup block further down handles
+  // any near-duplicates that still slip through within the same detection
+  // batch).
+  const existing4hPrices = zonesState
+    .filter(o => o.status !== 'removed' && o.timeframe === 240 && (o.type === 'sd_level_demand' || o.type === 'sd_level_supply' || o.type === 'sr_flip_support' || o.type === 'sr_flip_resistance'))
+    .map(o => ({ price: o.price_low }));
+  const near4hSelf = (lvl) => existing4hPrices.some(l4 => Math.abs(l4.price - lvl.price) <= l4.price * NEAR_12H_PCT);
+  const sdLevels4h = lib.findSDLevels(bars4h, { nowSec }).filter(levelIsRelevant).filter(lvl => !alreadyTracked(lvl, 240)).filter(lvl => !near12h(lvl)).filter(lvl => !near4hSelf(lvl));
 
   // --- 4. Order blocks + 5. FVGs ---
   // Order Blocks (user definition): last opposite-colour candle before an
@@ -191,6 +217,12 @@ async function main() {
   const obs4h = lib.findOrderBlocks(bars4h, bos4h).filter(isRelevant);
   const obsTactical = lib.findOrderBlocks(tacticalBars, bosTactical).filter(o => recentEnough(o.time));
   const fvgsTactical = lib.findFVGs(tacticalBars).filter(g => lib.fvgFillFraction(g, tacticalBars) < 0.5).filter(g => recentEnough(g.time));
+  // 12H/4H FVGs for the new Scenario A's bonus confirmation (user-specified:
+  // "FVGs bitte in 12h, 4h und 15min finden") — price-distance filtered like
+  // other 12H/4H objects, not time-filtered (a 2-day recency window makes no
+  // sense on these slower timeframes).
+  const fvgs12h = lib.findFVGs(bars12h).filter(g => lib.fvgFillFraction(g, bars12h) < 0.5).filter(isRelevant);
+  const fvgs4h = lib.findFVGs(bars4h).filter(g => lib.fvgFillFraction(g, bars4h) < 0.5).filter(isRelevant);
 
   // 1H and 5min OBs were previously invisible to the system entirely (only
   // 12H/4H/tactical were scanned) — added after finding real, price-relevant
@@ -211,6 +243,13 @@ async function main() {
   // on predicting forward price direction over 10/20/40-bar horizons.
   const lastBos4hForTrend = bos4h[bos4h.length - 1];
   const htfBias = lastBos4hForTrend ? lastBos4hForTrend.type : null;
+
+  // Trend for the new Scenario A ("Trend-Reversal-Fade an POI", 28.07.2026,
+  // user-specified) is deliberately on 1H, not 4H — kept separate from B/D's
+  // htfBias rather than reused, since the user's refined timeframe hierarchy
+  // for A specifically calls for 1H trend determination.
+  const lastBos1hForA = bos1h[bos1h.length - 1];
+  const aHtfBias = lastBos1hForA ? lastBos1hForA.type : null;
 
   // Short-term bias: momentum (last 3 tactical candles), not BOS — calibrated
   // against real data showing BOS lags too much for a "what just happened"
@@ -243,6 +282,26 @@ async function main() {
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
   const removedLog = [];
   const breachedLog = [];
+
+  // User-reported, 29.07.2026 (live-verified): saw duplicate PDH lines and
+  // 4H levels, plus mitigated FVGs still on the chart. Root cause: every
+  // removal site below unconditionally set `status = 'removed'` right after
+  // calling remove(), without checking whether the CDP call actually
+  // succeeded. remove() returns `{removed: false}` (success:true, but the
+  // shape is still there — e.g. a transient CDP/timing hiccup) in a
+  // genuinely-failed case, vs `{ok: false, error: 'Shape not found...'}`
+  // when the shape was already gone (harmless — nothing to orphan). Treating
+  // BOTH as "done" meant a failed-but-still-present shape got marked removed
+  // anyway; once >7 days old, PRUNE_AGE_SEC deletes the state record
+  // entirely, leaving the shape stranded on the chart forever with no
+  // tracking left to ever clean it up. Found live: 14 such orphans (9 S/D-
+  // level rays, 3 zone/FVG rectangles, 2 PDH/PDL lines) — see cleanup script
+  // referenced in the handover, Teil 8.
+  function wasActuallyRemoved(r) {
+    if (r?.removed === true) return true;
+    if (r?.ok === false && /not found/i.test(r.error || '')) return true; // already gone — nothing to orphan
+    return false;
+  }
 
   // Moved up from its original spot further down (after the S/R drawing loop)
   // so blocks that run earlier in this section — breach/level conversion to
@@ -301,40 +360,67 @@ async function main() {
 
     if (shouldRemove) {
       const r = await remove(entry.tv_entity_id);
-      entry.status = 'removed';
-      entry.removed_at = nowIso;
-      entry.removed_reason = reason;
-      removedLog.push({ id: entry.id, reason, remove_result: r });
+      if (wasActuallyRemoved(r)) {
+        entry.status = 'removed';
+        entry.removed_at = nowIso;
+        entry.removed_reason = reason;
+      } else {
+        dataWarnings.push(`Entfernen von ${entry.id} (${reason}) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
+      }
+      removedLog.push({ id: entry.id, reason, remove_result: r, actually_removed: wasActuallyRemoved(r) });
     }
   }
 
-  // --- Clean up pre-existing 12H self-duplicates ---
-  // One-time cleanup for the dense "wall" that accumulated before near12hSelf
-  // existed above (many near-identical 12H levels 15-20 points apart, found
-  // via live debugging — it was silently blocking almost every 4H candidate
-  // via the near12h check). For each pair within tolerance, keep the OLDER
+  // --- Clean up pre-existing 12H/4H self-duplicates ---
+  // One-time cleanup for the dense "wall" that accumulated before near12hSelf/
+  // near4hSelf existed above (many near-identical levels 2-20 points apart on
+  // the same timeframe, found via live debugging — on 12H it was silently
+  // blocking almost every 4H candidate via the near12h check; on 4H the user
+  // caught it directly on the chart, 29.07.2026: 25511.78 Supply and 25509.71
+  // Demand, 2pts apart). Deliberately type-agnostic (matches near12hSelf/
+  // near4hSelf above) — a Demand+Supply pair this close is just as redundant
+  // as two same-type levels would be, and both render in the same per-
+  // timeframe color anyway (see draw.mjs COLORS), so they're visually
+  // indistinguishable clutter either way. Runs every time (not just once)
+  // since a fresh pair can still slip through within the same detection
+  // batch — the pre-filters above only check against already-tracked state,
+  // not against each other. For each pair within tolerance, keep the OLDER
   // one (earlier created_at) and remove the newer duplicate.
-  const active12hLevels = zonesState.filter(e => e.status === 'active' && e.timeframe === 720 && (e.type === 'sd_level_demand' || e.type === 'sd_level_supply'));
-  const sorted12h = [...active12hLevels].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  const kept12h = [];
-  for (const entry of sorted12h) {
-    const dup = kept12h.find(k => k.type === entry.type && Math.abs(k.price_low - entry.price_low) <= k.price_low * NEAR_12H_PCT);
-    if (dup) {
-      const r = await remove(entry.tv_entity_id);
-      entry.status = 'removed';
-      entry.removed_at = nowIso;
-      entry.removed_reason = 'duplicate_12h_self';
-      removedLog.push({ id: entry.id, reason: 'duplicate_12h_self', remove_result: r });
-    } else {
-      kept12h.push(entry);
+  for (const tf of [720, 240]) {
+    const activeLevels = zonesState.filter(e => e.status === 'active' && e.timeframe === tf && (e.type === 'sd_level_demand' || e.type === 'sd_level_supply'));
+    const sortedLevels = [...activeLevels].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const kept = [];
+    const reason = tf === 720 ? 'duplicate_12h_self' : 'duplicate_4h_self';
+    for (const entry of sortedLevels) {
+      const dup = kept.find(k => Math.abs(k.price_low - entry.price_low) <= k.price_low * NEAR_12H_PCT);
+      if (dup) {
+        const r = await remove(entry.tv_entity_id);
+        if (wasActuallyRemoved(r)) {
+          entry.status = 'removed';
+          entry.removed_at = nowIso;
+          entry.removed_reason = reason;
+        } else {
+          dataWarnings.push(`Entfernen von ${entry.id} (${reason}) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
+        }
+        removedLog.push({ id: entry.id, reason, remove_result: r, actually_removed: wasActuallyRemoved(r) });
+      } else {
+        kept.push(entry);
+      }
     }
   }
 
   // --- Convert breached S/D zones to S/R levels ---
   for (const entry of zonesState) {
     if (entry.status !== 'breached') continue;
-    // Remove old rectangle drawing
-    await remove(entry.tv_entity_id);
+    // Remove old rectangle drawing — entry.tv_entity_id gets overwritten
+    // below regardless of outcome, so if this fails the old rectangle
+    // orphans with no tracking left to retry it (same failure mode as
+    // wasActuallyRemoved elsewhere — surfaced here since the conversion
+    // must proceed either way, unlike the other removal sites).
+    const removeOldResult = await remove(entry.tv_entity_id);
+    if (!wasActuallyRemoved(removeOldResult)) {
+      dataWarnings.push(`Alte Zone ${entry.id} konnte beim S/R-Flip nicht entfernt werden — möglicher Chart-Orphan.`);
+    }
 
     // Convert to S/R level: demand → support, supply → resistance
     // (distinct type from the old auto-clustered sr_support/sr_resistance,
@@ -386,12 +472,22 @@ async function main() {
 
     if (entry.break_count >= 2) {
       const r = await remove(entry.tv_entity_id);
-      entry.status = 'removed';
-      entry.removed_at = nowIso;
-      entry.removed_reason = 'sd_level_not_respected';
-      removedLog.push({ id: entry.id, reason: 'sd_level_not_respected', remove_result: r });
+      if (wasActuallyRemoved(r)) {
+        entry.status = 'removed';
+        entry.removed_at = nowIso;
+        entry.removed_reason = 'sd_level_not_respected';
+      } else {
+        dataWarnings.push(`Entfernen von ${entry.id} (sd_level_not_respected) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
+      }
+      removedLog.push({ id: entry.id, reason: 'sd_level_not_respected', remove_result: r, actually_removed: wasActuallyRemoved(r) });
     } else if (entry.touch_count >= 1 && !entry.colored_touched) {
-      await remove(entry.tv_entity_id);
+      // Same orphan risk as the S/R-flip conversion above: tv_entity_id gets
+      // overwritten below regardless, so a failed removal here would strand
+      // the old (uncolored) line untracked.
+      const removeOldResult = await remove(entry.tv_entity_id);
+      if (!wasActuallyRemoved(removeOldResult)) {
+        dataWarnings.push(`Alte Level-Linie ${entry.id} konnte beim Umfärben nicht entfernt werden — möglicher Chart-Orphan.`);
+      }
       const r = await draw('horizontal_ray', { time: entry.created_bar_time, price: entry.price_low }, undefined,
         { linecolor: COLORS.sd_level_touched, linewidth: 1, linestyle: 2 }, entry.label);
       if (r.ok) {
@@ -506,8 +602,12 @@ async function main() {
     const sorted = [...group].sort((a, b) => Math.abs(a.price_low - lastClose) - Math.abs(b.price_low - lastClose));
     for (const entry of sorted.slice(max)) {
       const r = await remove(entry.tv_entity_id);
-      entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'declutter_max_per_group';
-      removedLog.push({ id: entry.id, reason: 'declutter_max_per_group', remove_result: r });
+      if (wasActuallyRemoved(r)) {
+        entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'declutter_max_per_group';
+      } else {
+        dataWarnings.push(`Entfernen von ${entry.id} (declutter_max_per_group) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
+      }
+      removedLog.push({ id: entry.id, reason: 'declutter_max_per_group', remove_result: r, actually_removed: wasActuallyRemoved(r) });
     }
   }
   async function ensureMinOneLevel(rawLevels, wantedSubtype, type, timeframe, colorKey, tfLabel) {
@@ -543,8 +643,12 @@ async function main() {
     const nearest3 = sideSorted.slice(0, 3);
     for (const entry of sideSorted.slice(3)) {
       const r = await remove(entry.tv_entity_id);
-      entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'declutter_max_per_side';
-      removedLog.push({ id: entry.id, reason: 'declutter_max_per_side', remove_result: r });
+      if (wasActuallyRemoved(r)) {
+        entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'declutter_max_per_side';
+      } else {
+        dataWarnings.push(`Entfernen von ${entry.id} (declutter_max_per_side) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
+      }
+      removedLog.push({ id: entry.id, reason: 'declutter_max_per_side', remove_result: r, actually_removed: wasActuallyRemoved(r) });
     }
     for (let i = 0; i < nearest3.length; i++) {
       const entry = nearest3[i];
@@ -552,8 +656,12 @@ async function main() {
       const keepAnyway = isMorningRun && i === 0;
       if (ageSec > SR_MAX_AGE_SEC && !keepAnyway) {
         const r = await remove(entry.tv_entity_id);
-        entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'sr_line_older_than_3_months';
-        removedLog.push({ id: entry.id, reason: 'sr_line_older_than_3_months', remove_result: r });
+        if (wasActuallyRemoved(r)) {
+          entry.status = 'removed'; entry.removed_at = nowIso; entry.removed_reason = 'sr_line_older_than_3_months';
+        } else {
+          dataWarnings.push(`Entfernen von ${entry.id} (sr_line_older_than_3_months) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
+        }
+        removedLog.push({ id: entry.id, reason: 'sr_line_older_than_3_months', remove_result: r, actually_removed: wasActuallyRemoved(r) });
       }
     }
   }
@@ -602,7 +710,7 @@ async function main() {
   const { minutesOfDay } = lib.berlinDateTimeParts(nowSec);
   const session = lib.classifySession(minutesOfDay);
 
-  let scenarios = buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss: sweepMssTactical, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs });
+  let scenarios = buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss: sweepMssTactical, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs, aHtfBias, activeLevels12h, srLevels, fvgs12h, fvgs4h });
 
   // Backtest filter (change #2): momentum_continuation only if short-term bias
   // aligns with 4H trend AND during morning session (orb/main before 11:30).
@@ -612,6 +720,25 @@ async function main() {
   scenarios = scenarios.filter(s =>
     s.type !== 'momentum_continuation' || (momAligned && momMorning)
   );
+
+  // Full-confluence alert (shares dedup state with check_scenarios.mjs's
+  // frequent standalone check, so the two never double-alert the same
+  // confluence moment — same pattern as checkAndAlertMarketShifts above).
+  const scenarioAlertResult = await checkAndAlertFullConfluence(scenarios);
+
+  // --- Recommended Entry/SL/TP lines (user-requested, 28.07.2026) ---
+  // Same remove-then-redraw pattern as MS markers: previous lines are always
+  // cleared first, so a scenario that's no longer active doesn't linger.
+  // Also drops any scenario whose SL/TP price has already been crossed
+  // (isScenarioResolved) — user-specified, 28.07.2026: "lösche immer alle
+  // eingezeichneten Entries, wenn sie nicht mehr valide sind" — the
+  // underlying 4H zone can stay "active" well after price has already
+  // resolved the trade, so that alone isn't a reliable invalidation signal.
+  const SCENARIO_LINES_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_lines.json';
+  const scenarioLinesState = existsSync(SCENARIO_LINES_STATE_PATH) ? JSON.parse(readFileSync(SCENARIO_LINES_STATE_PATH, 'utf8')) : {};
+  const scenariosStillValid = scenarios.filter(s => !lib.isScenarioResolved(s, lastClose));
+  const scenarioLineIds = await drawScenarioLevels(scenariosStillValid, tacticalBars[tacticalBars.length - 1].time, scenarioLinesState);
+  writeFileSync(SCENARIO_LINES_STATE_PATH, JSON.stringify(scenarioLineIds, null, 2));
 
   // --- Self-feedback loop: log scenarios, check older ones against what
   // actually happened, surface a historical win-rate per scenario type. Adds
@@ -624,8 +751,8 @@ async function main() {
   // Szenario A (trend_bounce) removed 08.07.2026 — all 9 parameter combinations
   // tested negative in sweep. Dead code with no salvage path.
   // D was added after backtest fix (was missing entirely, causing unresolved log entries).
-  const barsByScenarioType = { counter_trend: tacticalBars, momentum_continuation: tacticalBars, consolidation_breakout: tacticalBars };
-  const expiryBarsByScenarioType = { counter_trend: 640, momentum_continuation: 40, consolidation_breakout: 40 };
+  const barsByScenarioType = { counter_trend: tacticalBars, momentum_continuation: tacticalBars, consolidation_breakout: tacticalBars, trend_reversal_poi: tacticalBars };
+  const expiryBarsByScenarioType = { counter_trend: 640, momentum_continuation: 40, consolidation_breakout: 40, trend_reversal_poi: 640 };
 
   for (const logEntry of scenarioLog) {
     if (logEntry.resolved) continue;
@@ -679,6 +806,7 @@ async function main() {
     observe12h: { lastCandles: bars12h.slice(-2), activeLevels: activeLevels12h, pdhl },
     observe4h: { lastCandles: bars4h.slice(-2), activeLevels: activeLevels4h, fvgs: fvgsTactical, pdhl },
     observeTactical: { lastCandles: tacticalBars.slice(-6), tf: formatTf(tacticalTf), pdhl, sweepMss: sweepMssTactical },
+    orbVwap,
   });
 
   // Saved immediately, BEFORE the screenshot/telegram steps below — found a
@@ -737,6 +865,7 @@ async function main() {
     zones12h, zones4h, srLevels, fvgsTactical, obs12h, obs4h, obs1h, obs5m, obsTactical,
     pdhl, breachedLog, removedLog, newEntriesCount: newEntries.length,
     telegramResult, telegramPhotoResult, scenarioScreenshotPath, briefingSavedTo: `/Users/boogy/briefings/briefing_${dateStr}.md`,
+    scenarioAlertResult,
   }, null, 2));
 
   console.log('\n\n===== BRIEFING TEXT =====\n');

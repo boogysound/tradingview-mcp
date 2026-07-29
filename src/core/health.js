@@ -350,11 +350,25 @@ export async function launch({ port, kill_existing, _deps } = {}) {
   }
 
   const killExisting = async () => {
-    try {
-      if (platform === 'win32') deps.execSync('taskkill /F /IM TradingView.exe', { timeout: 5000 });
-      else deps.execSync('pkill -f TradingView', { timeout: 5000 });
+    if (platform === 'win32') {
+      // taskkill /F already sends the forceful equivalent of SIGKILL.
+      try { deps.execSync('taskkill /F /IM TradingView.exe', { timeout: 5000 }); } catch { /* may not be running */ }
       await deps.delay(1500);
-    } catch { /* may not be running */ }
+      return;
+    }
+    // Plain SIGTERM (pkill -f) isn't always enough — found live twice now
+    // (handover, 28.07. and 29.07.2026): the main Electron process can end up
+    // wedged (CDP port still answering, but page-level JS evaluate hangs) and
+    // simply ignores SIGTERM in that state, leaving the old instance running
+    // alongside a freshly spawned one. Give it a moment to exit cleanly first,
+    // then escalate to SIGKILL only if it's still alive.
+    try { deps.execSync('pkill -f TradingView', { timeout: 5000 }); } catch { /* may not be running */ }
+    await deps.delay(1500);
+    try {
+      deps.execSync('pgrep -f TradingView', { timeout: 5000 }); // throws if nothing matched
+      try { deps.execSync('pkill -9 -f TradingView', { timeout: 5000 }); } catch { /* already gone between pgrep and pkill */ }
+      await deps.delay(1000);
+    } catch { /* pgrep found nothing — SIGTERM already did the job */ }
   };
 
   if (killFirst) await killExisting();

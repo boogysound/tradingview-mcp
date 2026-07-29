@@ -909,6 +909,47 @@ export function calculatePDHL(dailyBars) {
   };
 }
 
+// ---------- Scenario invalidation (price already resolved it) ----------
+// A scenario whose SL or TP has already been crossed by the current price is
+// no longer a live recommendation — even if the underlying 4H zone hasn't
+// aged out yet (that lifecycle runs on run.mjs's own, separate cadence).
+// User-specified, 28.07.2026: "lösche immer alle eingezeichneten Entries,
+// wenn sie nicht mehr valide sind" — drawn Entry/SL/TP lines must disappear
+// promptly once price has already resolved the trade, not linger until the
+// zone itself eventually gets cleaned up.
+export function isScenarioResolved(s, lastClose) {
+  const isLong = s.direction === 'LONG';
+  const tp = s.targets && s.targets[0];
+  const slHit = isLong ? lastClose <= s.sl : lastClose >= s.sl;
+  const tpHit = tp != null && (isLong ? lastClose >= tp : lastClose <= tp);
+  // Set by buildScenario (briefing.mjs) for Scenario B: the zone already
+  // closed through in the invalidating direction with no rejection or
+  // confirmation reaction ever detected — user-reported, 28.07.2026.
+  return slHit || tpHit || !!s.zoneBrokenNoRetest;
+}
+
+// ---------- Zone Rejection (single-candle wick violation) ----------
+// A bar's wick pierces the exact zone price against the scenario's direction
+// but CLOSES back on the favourable side — the weakest/first confluence
+// signal (a liquidity probe at the precise level), distinct from the fuller
+// Sweep+MSS structural shift (findSweepMSS, swing-based) and from the 5min
+// BOS/close-reaction confirmation (findConfirmation5m, band-based touch).
+// direction is the trade's own direction word ('bullish'/'bearish', matching
+// findBosEvents' type field) — 'bearish' means we want price to wick above
+// the zone and close back below it (rejection from a supply/resistance
+// zone), 'bullish' the mirror (rejection from a demand/support zone).
+export function findZoneRejection(bars, zonePrice, direction, { nowSec, maxAgeSec = 2 * 24 * 3600 } = {}) {
+  const recent = nowSec != null ? bars.filter(b => (nowSec - b.time) <= maxAgeSec) : bars;
+  for (let i = recent.length - 1; i >= 0; i--) {
+    const b = recent[i];
+    const isRejection = direction === 'bearish'
+      ? (b.high > zonePrice && b.close < zonePrice)
+      : (b.low < zonePrice && b.close > zonePrice);
+    if (isRejection) return { rejected: true, time: b.time, price: zonePrice };
+  }
+  return { rejected: false, time: null, price: zonePrice };
+}
+
 // ---------- 5min entry confirmation ----------
 // "BOS auf 5min in Trade-Richtung nach Zonentest": a 5min candle must close
 // beyond the last local swing high/low, and that break must happen after

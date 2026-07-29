@@ -22,8 +22,9 @@
     "sl": 25424.035274,
     "target": 25133.7,
     "grade": "C",
-    "resolved": false,
-    "outcome": null
+    "resolved": true,
+    "outcome": "sl_hit",
+    "resolvedAt": "2026-07-27T17:08:48.287Z"
   },
   {
     "id": "counter_trend_1783581943",
@@ -35,8 +36,9 @@
     "sl": 25484.259246,
     "target": 25575.837738000002,
     "grade": "C",
-    "resolved": false,
-    "outcome": null
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-27T17:08:48.287Z"
   },
   {
     "id": "counter_trend_1783581962",
@@ -48,8 +50,9 @@
     "sl": 24639.059718,
     "target": 24550.199153999998,
     "grade": "C",
-    "resolved": false,
-    "outcome": null
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-17T07:20:26.705Z"
   },
   {
     "id": "consolidation_breakout_1783581962",
@@ -78,5 +81,145 @@
     "resolved": true,
     "outcome": "target_hit",
     "resolvedAt": "2026-07-09T19:00:10.344Z"
+  },
+  {
+    "id": "counter_trend_1783715408",
+    "loggedAt": "2026-07-10T20:30:08.974Z",
+    "loggedBarTime": 1783712700,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25116.77,
+    "sl": 25161.980186,
+    "target": 25252.400558,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-14T07:18:11.492Z"
+  },
+  {
+    "id": "counter_trend_1784013491",
+    "loggedAt": "2026-07-14T07:18:11.492Z",
+    "loggedBarTime": 1784013300,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25116.77,
+    "sl": 25161.980186,
+    "target": 25252.400558,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "sl_hit",
+    "resolvedAt": "2026-07-15T07:20:11.616Z"
+  },
+  {
+    "id": "counter_trend_1784100011",
+    "loggedAt": "2026-07-15T07:20:11.616Z",
+    "loggedBarTime": 1784099700,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 24984.16,
+    "sl": 25029.131488,
+    "target": 25119.074463999998,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-17T07:20:26.705Z"
+  },
+  {
+    "id": "counter_trend_1784272826",
+    "loggedAt": "2026-07-17T07:20:26.705Z",
+    "loggedBarTime": 1784272500,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 24777.1,
+    "sl": 24821.69878,
+    "target": 24910.89634,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "sl_hit",
+    "resolvedAt": "2026-07-20T17:18:16.857Z"
+  },
+  {
+    "id": "counter_trend_1784567896",
+    "loggedAt": "2026-07-20T17:18:16.857Z",
+    "loggedBarTime": 1784567700,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 24817.22,
+    "sl": 24861.890996000002,
+    "target": 24951.232988000003,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-27T17:08:48.287Z"
+  },
+  {
+    "id": "counter_trend_1785172128",
+    "loggedAt": "2026-07-27T17:08:48.287Z",
+    "loggedBarTime": 1785171600,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25470.29,
+    "sl": 25516.136522,
+    "target": 25607.829566,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-27T19:59:20.920Z"
+  },
+  {
+    "id": "counter_trend_1785226814",
+    "loggedAt": "2026-07-28T08:20:14.954Z",
+    "loggedBarTime": 1785226500,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25470.29,
+    "sl": 25516.136522,
+    "target": 25607.829566,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-28T12:58:07.537Z"
+  },
+  {
+    "id": "counter_trend_1785227479",
+    "loggedAt": "2026-07-28T08:31:19.555Z",
+    "loggedBarTime": 1785227400,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25435.09,
+    "sl": 25480.873162,
+    "target": 25572.439486,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-28T12:58:07.537Z"
+  },
+  {
+    "id": "counter_trend_1785243487",
+    "loggedAt": "2026-07-28T12:58:07.537Z",
+    "loggedBarTime": 1785242700,
+    "type": "counter_trend",
+    "direction": "SHORT",
+    "zonePrice": 25412.58,
+    "sl": 25458.322644000003,
+    "target": 25549.807932000007,
+    "grade": "C",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-28T20:00:01.744Z"
+  },
+  {
+    "id": "trend_reversal_poi_1785268828",
+    "loggedAt": "2026-07-28T20:00:28.861Z",
+    "loggedBarTime": 1785268800,
+    "type": "trend_reversal_poi",
+    "direction": "LONG",
+    "zonePrice": 25480.09,
+    "sl": 25470.4625,
+    "target": 25499.344999999998,
+    "grade": "B+",
+    "resolved": true,
+    "outcome": "target_hit",
+    "resolvedAt": "2026-07-29T07:22:37.853Z"
   }
 ]

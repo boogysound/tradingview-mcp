@@ -1,11 +1,10 @@
 /**
- * Fetch ~6 months of DE40 history (15m / 4H / Daily) directly from the live
- * TradingView chart via CDP — NO Pine Script, nothing programmed in TV.
- * Works by scrolling the chart's visible range to the left edge repeatedly
- * (which makes TradingView lazy-load older bars into the main series), then
- * reading the whole in-memory bar series out in chunks.
+ * Fetch as much DE40 history as the feed allows for 1H and 5min, same
+ * technique as fetch_history_6m.mjs (scroll chart left, requestMoreData,
+ * read the in-memory bar series out in chunks). Needed for the MS-as-entry
+ * backtest — the existing 6m data set only has 15m/4H/Daily.
  *
- * Output: backtests/data_15m.json, data_4h.json, data_daily.json
+ * Output: backtests/data_1h.json, data_5m.json
  */
 import { writeFileSync } from 'fs';
 import { evaluate, disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
@@ -16,8 +15,7 @@ const CHART = 'window.TradingViewApi._activeChartWidgetWV.value()';
 const BARS = `${CHART}._chartWidget.model().mainSeries().bars()`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Warmup buffer before 01.01.2026 so ATR/swings/BOS have context at sim start.
-const TARGET_SEC = Math.floor(Date.UTC(2025, 11, 1) / 1000); // 2025-12-01
+const TARGET_SEC = Math.floor(Date.UTC(2025, 11, 1) / 1000); // 2025-12-01, same warmup target as the 6m fetch
 
 async function firstBarInfo() {
   return evaluate(`(function(){
@@ -29,7 +27,7 @@ async function firstBarInfo() {
   })()`);
 }
 
-async function loadHistoryUntil(targetSec, maxIters = 120) {
+async function loadHistoryUntil(targetSec, maxIters = 200) {
   let lastFirstTime = null, stall = 0;
   for (let k = 0; k < maxIters; k++) {
     const info = await firstBarInfo();
@@ -40,9 +38,6 @@ async function loadHistoryUntil(targetSec, maxIters = 120) {
       if (stall >= 5) { console.error(`  history stalled at ${new Date(info.firstTime * 1000).toISOString()}`); return info; }
     } else stall = 0;
     lastFirstTime = info.firstTime;
-    // ask the series for more history directly (found via introspection:
-    // mainSeries().requestMoreData exists; zoomToBarsRange alone doesn't
-    // trigger the lazy-load pipeline reliably)
     await evaluate(`(function(){
       var s = ${CHART}._chartWidget.model().mainSeries();
       if (typeof s.requestMoreData === 'function') s.requestMoreData(1000);
@@ -92,14 +87,11 @@ async function main() {
 
   const original = await getState();
 
-  await fetchTf('D', 'daily');
-  await fetchTf(240, '4h');
   await fetchTf(60, '1h');
-  await fetchTf(15, '15m');
+  await fetchTf(5, '5m');
 
   await setTimeframe({ timeframe: original.resolution });
   await sleep(1000);
-  // reset view to the live edge
   await evaluate(`(function(){ var m=${CHART}._chartWidget.model(); m.timeScale().scrollToRealtime && m.timeScale().scrollToRealtime(true); })()`).catch(() => {});
   console.error('\nDone. Chart restored to original resolution.');
   await disconnect();
