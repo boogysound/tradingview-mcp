@@ -34,6 +34,11 @@
  * "in dem Moment, wo sie 50% durchbrochen wurde", not wait for the next
  * twice-daily run.mjs. Same removed-vs-still-there bookkeeping as run.mjs
  * (wasActuallyRemoved, draw.mjs), scoped to just FVG entries to stay cheap.
+ *
+ * Also runs the S/D level lifecycle (touch-coloring + convert-to-S/R on 2nd
+ * real break) within the same ~15 min cadence (Teil 13, user-specified) —
+ * see applySdLevelLifecycle() in state.mjs, shared with run.mjs so the logic
+ * itself lives in one place.
  */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { disconnect } from '../../src/connection.js';
@@ -42,7 +47,7 @@ import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { buildScenarios } from './briefing.mjs';
 import { checkAndAlertScenarioEntries } from './scenario_alerts.mjs';
-import { drawScenarioLevels, remove, wasActuallyRemoved } from './draw.mjs';
+import { drawScenarioLevels, remove, wasActuallyRemoved, verifyDottedLinestyleCode } from './draw.mjs';
 
 const SCENARIO_LINES_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_lines.json';
 
@@ -127,6 +132,7 @@ async function main() {
   // cheap at the 15-min cadence (no full S/D/OB invalidation sweep here —
   // that stays twice-daily via run.mjs).
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };
+  const nowIso = new Date(nowSec * 1000).toISOString();
   let fvgsMitigated = 0;
   for (const entry of zonesState) {
     if (entry.status !== 'active' || (entry.type !== 'fvg_bullish' && entry.type !== 'fvg_bearish')) continue;
@@ -134,12 +140,23 @@ async function main() {
     const r = await remove(entry.tv_entity_id);
     if (wasActuallyRemoved(r)) {
       entry.status = 'removed';
-      entry.removed_at = new Date().toISOString();
+      entry.removed_at = nowIso;
       entry.removed_reason = 'fvg_mitigated_50pct';
       fvgsMitigated++;
     }
   }
-  if (fvgsMitigated) state.writeState(zonesState);
+
+  // User-specified, 29.07.2026 (Teil 13): a 4H/12H level that's been broken
+  // through repeatedly shouldn't wait for the twice-daily run.mjs to flip
+  // into a watched S/R line — same ~15-min-cadence reasoning as the FVG
+  // cleanup above. See applySdLevelLifecycle() in state.mjs for the full
+  // lifecycle (fresh -> touched -> converted-to-S/R on 2nd real break).
+  const dataWarnings = [];
+  const dottedCheck = await verifyDottedLinestyleCode();
+  const dottedCode = dottedCheck.verified ? dottedCheck.assumed : (dottedCheck.reported ?? 2);
+  const { converted: levelsConverted, colored: levelsColored } = await state.applySdLevelLifecycle(zonesState, barsByTf, { tacticalBars, dottedCode, nowIso, dataWarnings });
+
+  if (fvgsMitigated || levelsConverted || levelsColored) state.writeState(zonesState);
 
   const tacticalAtrArr = lib.atr(tacticalBars, 14);
   const tacticalAtr = tacticalAtrArr[tacticalAtrArr.length - 1];
@@ -166,6 +183,9 @@ async function main() {
     telegramResults: result.telegramResults,
     scenarios: scenarios.map(s => ({ type: s.type, direction: s.direction, metCount: s.metCount, totalCount: s.totalCount, probability: s.probability })),
     fvgsMitigated,
+    levelsConverted,
+    levelsColored,
+    dataWarnings,
   }));
 }
 

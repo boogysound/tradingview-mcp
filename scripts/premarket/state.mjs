@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import { fvgFillFraction } from './lib.mjs';
+import { draw, remove, wasActuallyRemoved, COLORS } from './draw.mjs';
 
 const STATE_PATH = '/Users/boogy/tradingview-mcp/state/zones.json';
 const REGIME_STATE_PATH = '/Users/boogy/tradingview-mcp/state/regime_daily.json';
@@ -126,6 +127,86 @@ export function checkLevelInteraction(entry, bars) {
     if (entry.type === 'sd_level_supply' && b.close > price) brokenNew++;
   }
   return { touchedNew, brokenNew, lastCheckedTime: future[future.length - 1].time };
+}
+
+// Extracted from run.mjs (Teil 13, 29.07.2026) so check_scenarios.mjs can
+// run the same lifecycle on its own ~15-min cadence — user-specified: a 4H
+// level that's been broken through repeatedly and "funktioniert nicht mehr"
+// shouldn't wait for the twice-daily run.mjs to flip into a watched S/R
+// line. fresh (lila/orange) -> 1st touch (hellblau, same label, SR-
+// conversion on 2nd TOUCH was tried and explicitly disabled by the user —
+// touches beyond the 1st no longer change anything) -> 2 actual BREAKS
+// (close through, "nicht respektiert") converts to a light-blue S/R line
+// instead of deleting outright, same treatment S/D zones already got on
+// their 2nd breach (see "Convert breached S/D zones to S/R levels" in
+// run.mjs). Once converted, it's a plain sr_flip_* entry — isInvalidated()'s
+// existing S/R branch (2 consecutive closes past it) removes it for real if
+// it turns out to still not hold. Mutates zonesState entries in place and
+// pushes onto the caller's dataWarnings array; returns nothing.
+export async function applySdLevelLifecycle(zonesState, barsByTf, { tacticalBars, dottedCode, nowIso, dataWarnings }) {
+  let converted = 0, colored = 0;
+  for (const entry of zonesState) {
+    if (entry.status !== 'active') continue;
+    if (entry.type !== 'sd_level_demand' && entry.type !== 'sd_level_supply') continue;
+
+    const bars = barsByTf[entry.timeframe];
+    if (!bars || !bars.length) continue;
+    const { touchedNew, brokenNew, lastCheckedTime } = checkLevelInteraction(entry, bars);
+    // A gap can close beyond the level without any candle's wick-range ever
+    // containing the exact price — brokenNew can be >0 while touchedNew is
+    // 0. Only skip when there's neither a touch nor a break.
+    if (!touchedNew && !brokenNew) continue;
+
+    entry.touch_count = (entry.touch_count ?? 0) + touchedNew;
+    entry.break_count = (entry.break_count ?? 0) + brokenNew;
+    entry.last_checked_time = lastCheckedTime;
+
+    if (entry.break_count >= 2) {
+      // Same orphan risk as the other conversion sites: tv_entity_id gets
+      // overwritten below regardless of outcome.
+      const removeOldResult = await remove(entry.tv_entity_id);
+      if (!wasActuallyRemoved(removeOldResult)) {
+        dataWarnings.push(`Alte Level-Linie ${entry.id} konnte beim S/R-Flip nicht entfernt werden — möglicher Chart-Orphan.`);
+      }
+
+      const isSupport = entry.type === 'sd_level_demand';
+      const newType = isSupport ? 'sr_flip_support' : 'sr_flip_resistance';
+      const srPrice = entry.price_low;
+      const tfLabel = entry.timeframe === 720 ? '12H' : '4H';
+      const srLabel = `${isSupport ? 'Support' : 'Resistance'} ${srPrice.toFixed(1)} (ex-${tfLabel}-${isSupport ? 'Demand' : 'Supply'})`;
+      const r = await draw('horizontal_line',
+        { time: tacticalBars[tacticalBars.length - 1].time, price: srPrice },
+        undefined,
+        { linecolor: COLORS.sr_level, linewidth: 2, linestyle: dottedCode, showLabel: true, textcolor: COLORS.sr_level, fontsize: 10 },
+        srLabel);
+
+      if (r.ok) {
+        entry.tv_entity_id = r.entity_id;
+        entry.type = newType;
+        entry.price_high = srPrice;
+        entry.converted_at = nowIso;
+        converted++;
+      } else {
+        dataWarnings.push(`S/R-Flip für ${entry.id} (sd_level_not_respected) fehlgeschlagen — bleibt als alte Level-Linie aktiv, erneuter Versuch nächster Lauf.`);
+      }
+    } else if (entry.touch_count >= 1 && !entry.colored_touched) {
+      // Same orphan risk as the S/R-flip conversion above: tv_entity_id gets
+      // overwritten below regardless, so a failed removal here would strand
+      // the old (uncolored) line untracked.
+      const removeOldResult = await remove(entry.tv_entity_id);
+      if (!wasActuallyRemoved(removeOldResult)) {
+        dataWarnings.push(`Alte Level-Linie ${entry.id} konnte beim Umfärben nicht entfernt werden — möglicher Chart-Orphan.`);
+      }
+      const r = await draw('horizontal_ray', { time: entry.created_bar_time, price: entry.price_low }, undefined,
+        { linecolor: COLORS.sd_level_touched, linewidth: 1, linestyle: 2 }, entry.label);
+      if (r.ok) {
+        entry.tv_entity_id = r.entity_id;
+        entry.colored_touched = true;
+        colored++;
+      }
+    }
+  }
+  return { converted, colored };
 }
 
 // Section 9.1 dedup — same type+timeframe with overlapping price range already active?

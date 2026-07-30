@@ -1,16 +1,16 @@
 {
-  "date": "2026-07-29",
+  "date": "2026-07-30",
   "regime": {
     "regime": "EXTREM",
     "isSommerpause": true,
     "lotsize": 0.01,
     "maxTrades": 1,
     "requireFullConfluence": true,
-    "overnightGapPts": 1.5299999999988358,
-    "todayRangePts": 333.27000000000044,
-    "distanceFrom4hClosePts": 0.9799999999995634,
+    "overnightGapPts": 5.06000000000131,
+    "todayRangePts": 226.79999999999927,
+    "distanceFrom4hClosePts": 6,
     "reasons": [
-      "Tages-Range vor ORB-Ende 333.3 Punkte (> 200)"
+      "Tages-Range vor ORB-Ende 226.8 Punkte (> 200)"
     ]
   }
 }

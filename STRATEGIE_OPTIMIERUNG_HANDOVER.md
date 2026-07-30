@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 2026-07-29, Teil 12 (Telegram-Alert jetzt für JEDEN potenziellen Entry, nicht nur bei voller Confluence)
+**Stand:** 2026-07-30, Teil 13 fortgesetzt (Level-Lifecycle jetzt auch im 15-Min-Takt, nicht mehr nur 2x täglich)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)
 **Status:** ✅ Produktiv (`launchd`). Zwei aktive, backtestete Strategien: **B** (Fresh-Zone-Fade, 71,4% WR/+0,43R, 6 Monate validiert) und **A** (Trend-Reversal an POI, 34,9% WR/+0,13R, ~2 Monate validiert — kleinere Stichprobe, moderat statt stark). D bleibt technisch aktiv, feuert aber praktisch nie. Briefing referenziert zusätzlich die User-eigenen ORB/VWAP-Indikatoren (Teil 7).
 
@@ -808,6 +808,93 @@ mit neuem Header) konnte mangels aktivem Szenario in diesem Moment nicht
 live am echten Signal verifiziert werden — greift beim nächsten Szenario mit
 berechnetem Target automatisch, gleicher Code-Pfad wie der bereits
 produktiv bewiesene Full-Confluence-Alert.
+
+---
+
+## 🎯 Session-Log 29.07.2026, Teil 13 — Durchbrochene 4H/12H-Level → S/R statt Löschen
+
+**Auslöser:** User sah eine 4H-Linie, die mehrfach durchbrochen wurde und
+"nicht mehr funktioniert" — Wunsch: in eine hellblaue S/R-Linie umwandeln
+statt löschen, weiter beobachten, bei fortgesetzter Irrelevanz dann löschen.
+
+**Bestehendes Verhalten (kein Bug, aber inkonsistent):** S/D-ZONEN
+(`sd_zone_demand`/`supply`, Rechtecke) bekamen bei der 2. Verletzung bereits
+seit längerem die S/R-Flip-Behandlung ("Convert breached S/D zones to S/R
+levels", `run.mjs`). S/D-LEVEL (`sd_level_demand`/`supply`, einzelne
+Preis-Rays) hatten diese Behandlung NICHT — bei `break_count >= 2` ("2 echte
+Brüche, Close durch") wurden sie bisher komplett gelöscht
+(`sd_level_not_respected`). Live im State gefunden: viele historische Level
+mit `break_count` bis zu 43 (!), alle gelöscht statt umgewandelt.
+
+**Root Cause für "warum sehe ich das erst jetzt so extrem" (Cadence-Gap):**
+Das Break-Count-Tracking für 4H/12H-Level (`checkLevelInteraction()`) läuft
+ausschließlich im vollen `run.mjs`-Lauf (zweimal täglich, 09:20/22:00) — nicht
+in den 10/15-Minuten-Checks. Letzter Voll-Lauf vor diesem Fix: 09:20 Uhr;
+aktuelle Uhrzeit beim User-Hinweis: ~19:48 Uhr — fast 10 Stunden ohne Update.
+In der Zwischenzeit hatte der Kurs mehrere Level längst mehrfach durchbrochen,
+ohne dass das System es bereits verarbeitet hatte.
+
+**Fix (`run.mjs`, S/D-Level-Lifecycle-Block):** Bei `break_count >= 2` wird
+jetzt — statt gelöscht — exakt wie bei Zonen konvertiert: alte Ray entfernen,
+neue `horizontal_line` in `COLORS.sr_level` (`#00FFFF`, Cyan/"hellblau")
+zeichnen, Typ auf `sr_flip_support`/`sr_flip_resistance` setzen. Ab dann
+"beobachtet" sich die Linie von selbst — `isInvalidated()`s bereits
+bestehender S/R-Zweig entfernt sie endgültig, sobald 2 aufeinanderfolgende
+Closes sie erneut durchbrechen (kein Sonderfall nötig, bestehender Mechanismus
+greift automatisch).
+
+**Live verifiziert (29.07.2026, ~20:22):** Voll-Lauf manuell getriggert (die
+letzte planmäßige Ausführung war ~10 Stunden alt) — 4 Level sofort korrekt
+konvertiert statt gelöscht:
+- 4H Supply 25470.29 → Resistance (touch_count 11, break_count 7)
+- 4H Demand 25509.71 → Support (touch_count 7, break_count 6)
+- 4H Supply 25349.38 → Resistance (touch_count 2, break_count 7)
+- 12H Supply 25267.45 → Resistance (touch_count 13, break_count 15)
+
+Farbe live per `getProperties()` bestätigt: `linecolor: "#00FFFF"` — das ist
+technisch Cyan/Türkis, nicht reines Blau. Falls ein anderer Farbton gewünscht
+ist, einfach Bescheid geben (User noch nicht gefragt/bestätigt).
+
+**Fortsetzung 30.07.2026 (nach Sitzungs-Unterbrechung durch Rechner-Ruhezustand)
+— User bestätigte auf Nachfrage: Farbe (Cyan `#00FFFF`) passt, UND der
+Cadence-Gap soll geschlossen werden ("ja, beides machen").**
+
+**Cadence-Fix:** Der S/D-Level-Lifecycle-Block (Touch-Coloring + S/R-Flip-
+Konvertierung bei 2. echtem Bruch) aus `run.mjs` nach `state.mjs` extrahiert
+als `applySdLevelLifecycle(zonesState, barsByTf, {...})` — jetzt von
+`run.mjs` UND `check_scenarios.mjs` (15-Min-Takt) geteilt, exakt gleiches
+Muster wie die FVG-Mitigation in Teil 10. `check_scenarios.mjs` holt sich
+dafür zusätzlich `dottedCode` per `verifyDottedLinestyleCode()` (bisher nur
+in `run.mjs` genutzt) und schreibt den State nur, wenn tatsächlich etwas
+konvertiert/eingefärbt wurde (`levelsConverted`/`levelsColored` als
+Rückgabewerte, analog `fvgsMitigated`).
+
+**Live verifiziert (30.07.2026) — gleich zweifach, unabhängig voneinander:**
+1. Der planmäßige 09:20-Morning-Briefing-Cronjob griff automatisch auf den
+   neuen Code zu (launchd ruft nur den Skript-Pfad auf, kein Git nötig) und
+   konvertierte `sd_level_demand_240_..._25388` (25388.14) → `sr_flip_support`,
+   `converted_at: 07:20:45 UTC` (= 09:20 Berlin) — bevor die
+   `check_scenarios.mjs`-Erweiterung überhaupt fertig war.
+2. **Nebenbefund (Selbstkorrektur nötig):** Beim Verifizieren eines
+   möglichen zirkulären Imports (`state.mjs` importiert jetzt `draw.mjs`)
+   wurde versehentlich `import('./scripts/premarket/run.mjs')` in einem
+   Node-Einzeiler verwendet, um nur auf Ladefehler zu prüfen — das führt
+   aber `run.mjs`s Top-Level-`main()` sofort aus, genau wie ein normaler
+   Skript-Aufruf. Ergebnis: ein echter, ungeplanter Voll-Lauf inkl. echtem
+   Telegram-Text+Foto-Versand und 2 automatischen Chart-Bereinigungen
+   (`declutter_max_per_group`). Inhalt war korrekt/aktuell, nur außerplanmäßig
+   verschickt — dem User sofort transparent gemeldet. Für künftige
+   Ladeprüfungen: `node --check <datei>` (reine Syntaxprüfung, kein
+   Ausführen) statt `import()`. Dieser ungeplante Lauf konvertierte dabei
+   selbst 2 weitere Level: 4H Demand 25509.71 → Support, 4H Supply 25349.38
+   → Resistance (`converted_at: 08:44:05 UTC` = 10:44 Berlin).
+
+Kein zirkulärer Import gefunden: `draw.mjs` importiert nur aus
+`src/core/drawing.js`, `lib.mjs` hat gar keine Imports.
+
+**Verifiziert:** Lint 0 Fehler (sowohl `eslint scripts/premarket/` als auch
+`npm run lint` für `src/`), Unit-Suite 141/141 grün. 3 echte S/R-Flip-
+Konversionen live bestätigt (1 planmäßig, 2 durch den ungeplanten Lauf).
 
 ---
 

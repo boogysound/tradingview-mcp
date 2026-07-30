@@ -445,55 +445,11 @@ async function main() {
     }
   }
 
-  // --- S/D Level lifecycle (user-specified): fresh (lila/orange) -> 1st touch
-  // (hellblau, same label). SR-line conversion on 2nd touch was tried and
-  // then explicitly disabled by the user — touches beyond the 1st no longer
-  // change anything. 2 actual breaks (close through, "nicht respektiert")
-  // still deletes the level outright.
-  for (const entry of zonesState) {
-    if (entry.status !== 'active') continue;
-    if (entry.type !== 'sd_level_demand' && entry.type !== 'sd_level_supply') continue;
-
-    const bars = barsByTf[entry.timeframe];
-    if (!bars || !bars.length) continue;
-    const { touchedNew, brokenNew, lastCheckedTime } = state.checkLevelInteraction(entry, bars);
-    // A gap can close beyond the level without any candle's wick-range ever
-    // containing the exact price — brokenNew can be >0 while touchedNew is
-    // 0. The old `if (!touchedNew) continue` skipped break-tracking entirely
-    // in that case, so real breaks (13 of them, found live) never got
-    // counted. Only skip when there's neither a touch nor a break.
-    if (!touchedNew && !brokenNew) continue;
-
-    entry.touch_count = (entry.touch_count ?? 0) + touchedNew;
-    entry.break_count = (entry.break_count ?? 0) + brokenNew;
-    entry.last_checked_time = lastCheckedTime;
-
-    if (entry.break_count >= 2) {
-      const r = await remove(entry.tv_entity_id);
-      if (wasActuallyRemoved(r)) {
-        entry.status = 'removed';
-        entry.removed_at = nowIso;
-        entry.removed_reason = 'sd_level_not_respected';
-      } else {
-        dataWarnings.push(`Entfernen von ${entry.id} (sd_level_not_respected) fehlgeschlagen — bleibt aktiv, erneuter Versuch nächster Lauf.`);
-      }
-      removedLog.push({ id: entry.id, reason: 'sd_level_not_respected', remove_result: r, actually_removed: wasActuallyRemoved(r) });
-    } else if (entry.touch_count >= 1 && !entry.colored_touched) {
-      // Same orphan risk as the S/R-flip conversion above: tv_entity_id gets
-      // overwritten below regardless, so a failed removal here would strand
-      // the old (uncolored) line untracked.
-      const removeOldResult = await remove(entry.tv_entity_id);
-      if (!wasActuallyRemoved(removeOldResult)) {
-        dataWarnings.push(`Alte Level-Linie ${entry.id} konnte beim Umfärben nicht entfernt werden — möglicher Chart-Orphan.`);
-      }
-      const r = await draw('horizontal_ray', { time: entry.created_bar_time, price: entry.price_low }, undefined,
-        { linecolor: COLORS.sd_level_touched, linewidth: 1, linestyle: 2 }, entry.label);
-      if (r.ok) {
-        entry.tv_entity_id = r.entity_id;
-        entry.colored_touched = true;
-      }
-    }
-  }
+  // --- S/D Level lifecycle ---
+  // Extracted to state.mjs (Teil 13) so check_scenarios.mjs can run the same
+  // logic on its own ~15-min cadence instead of waiting for this twice-daily
+  // run — see applySdLevelLifecycle() there for the full rationale.
+  await state.applySdLevelLifecycle(zonesState, barsByTf, { tacticalBars, dottedCode, nowIso, dataWarnings });
 
   // --- draw newly detected, not-yet-tracked zones ---
   const newEntries = [];
