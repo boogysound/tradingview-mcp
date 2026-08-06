@@ -6,7 +6,7 @@ import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { getBerlinHour, fetchBars, sleep, readOrbVwap } from './utils.mjs';
-import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, drawScenarioLevels, wasActuallyRemoved } from './draw.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, wasActuallyRemoved } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
 import { checkAndAlertTrendResumptionMS } from './ms_alerts.mjs';
@@ -14,7 +14,18 @@ import { checkAndAlertScenarioEntries } from './scenario_alerts.mjs';
 
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
 
+// Diagnostic checkpoints (06.08.2026, Teil 38): the global-timeout catch
+// handler below only ever sees the timeout's OWN error/stack, never where
+// main() actually got stuck — so a recurring TradingView/CDP hang (Teil
+// 8/9, still unresolved) left no trace of WHICH phase froze. Cheap,
+// side-effect-free markers at each major CDP-heavy phase boundary: the
+// last one printed before a hang is the phase to look at.
+function checkpoint(label) {
+  console.log(`[checkpoint ${new Date().toISOString()}] ${label}`);
+}
+
 async function main() {
+  checkpoint('start: health check + state read');
   const dataWarnings = [];
   const nowSec = Math.floor(new Date().getTime() / 1000) || Math.floor(Date.now() / 1000);
   const nowIso = new Date().toISOString();
@@ -58,6 +69,7 @@ async function main() {
   if (orphanedCount) dataWarnings.push(`${orphanedCount} Zone(n) waren im State aktiv, aber nicht mehr im Chart (manuell gelöscht?) — aus dem State entfernt.`);
 
   // --- fetch OHLC across timeframes ---
+  checkpoint('before OHLC fetch (12h/4h/15m/1h/5m/daily/1m)');
   const bars12h = await fetchBars(720, 500);
   const bars4h = await fetchBars(240, 500);
   const bars15 = await fetchBars(15, 500);
@@ -277,6 +289,7 @@ async function main() {
   // more chart markers, Telegram only. See ms_alerts.mjs for the full
   // rationale. Shared with check_ms.mjs's frequent standalone check (every
   // ~10min via its own launchd job).
+  checkpoint('OHLC fetched, before Trend-Resumption-MS alert');
   await checkAndAlertTrendResumptionMS({ bars15, bars1h, bars1 });
 
   // --- section 9: invalidation/mitigation pass on tracked state ---
@@ -306,6 +319,7 @@ async function main() {
   // S/R lines — can safely reference it too (they were doing so before this
   // was defined, a latent ReferenceError bug that never fired only because
   // those code paths had zero matching entries in every run so far).
+  checkpoint('MS alert done, before invalidation/removal pass');
   const dottedCheck = await verifyDottedLinestyleCode();
   if (!dottedCheck.verified) dataWarnings.push(`Linestyle-Code für "gepunktet" nicht verifiziert (Annahme: 2). Detail: ${JSON.stringify(dottedCheck)}`);
   const dottedCode = dottedCheck.verified ? dottedCheck.assumed : (dottedCheck.reported ?? 2);
@@ -446,6 +460,7 @@ async function main() {
   }
 
   // --- S/D Level lifecycle ---
+  checkpoint('invalidation/removal + self-dedup done, before S/D level lifecycle');
   // Extracted to state.mjs (Teil 13) so check_scenarios.mjs can run the same
   // logic on its own ~15-min cadence instead of waiting for this twice-daily
   // run — see applySdLevelLifecycle() there for the full rationale.
@@ -495,6 +510,7 @@ async function main() {
     }
   }
 
+  checkpoint('S/D lifecycle done, before drawing new zones/levels/OBs/FVGs');
   for (const lvl of sdLevels12h) await maybeDrawLevel(lvl.type === 'demand' ? 'sd_level_demand' : 'sd_level_supply', 720, lvl, 'sd_level_12h', `12H ${lvl.type === 'demand' ? 'Demand' : 'Supply'}`);
   for (const lvl of sdLevels4h) await maybeDrawLevel(lvl.type === 'demand' ? 'sd_level_demand' : 'sd_level_supply', 240, lvl, 'sd_level_4h', `4H ${lvl.type === 'demand' ? 'Demand' : 'Supply'}`);
 
@@ -550,6 +566,7 @@ async function main() {
   // (bypassing the 15-day/5%-distance filters above, but still respecting
   // alreadyTracked so a permanently-invalidated level never gets resurrected)
   // so the chart never loses all directional context for that group.
+  checkpoint('new zones drawn (incl. PDHL), before declutter pass');
   async function capNearestToPrice(matchFn, max) {
     const group = zonesState.filter(e => e.status === 'active' && matchFn(e));
     if (group.length <= max) return;
@@ -664,6 +681,7 @@ async function main() {
   const { minutesOfDay } = lib.berlinDateTimeParts(nowSec);
   const session = lib.classifySession(minutesOfDay);
 
+  checkpoint('declutter done, before building scenarios');
   let scenarios = buildScenarios({ htfBias, activeLevels4h, fvgsTactical, pdhl, lastClose, regime, sweepMss: sweepMssTactical, premiumDiscount, bars5, nowSec, reversalObs, shortTermBias, tacticalAtr, tacticalBars, session, htfMs, aHtfBias, activeLevels12h, srLevels, fvgs12h, fvgs4h });
 
   // Backtest filter (change #2): momentum_continuation only if short-term bias
@@ -681,20 +699,6 @@ async function main() {
   // confluence moment — same signature-dedup pattern as
   // checkAndAlertTrendResumptionMS above.
   const scenarioAlertResult = await checkAndAlertScenarioEntries(scenarios);
-
-  // --- Recommended Entry/SL/TP lines (user-requested, 28.07.2026) ---
-  // Same remove-then-redraw pattern as MS markers: previous lines are always
-  // cleared first, so a scenario that's no longer active doesn't linger.
-  // Also drops any scenario whose SL/TP price has already been crossed
-  // (isScenarioResolved) — user-specified, 28.07.2026: "lösche immer alle
-  // eingezeichneten Entries, wenn sie nicht mehr valide sind" — the
-  // underlying 4H zone can stay "active" well after price has already
-  // resolved the trade, so that alone isn't a reliable invalidation signal.
-  const SCENARIO_LINES_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_lines.json';
-  const scenarioLinesState = existsSync(SCENARIO_LINES_STATE_PATH) ? JSON.parse(readFileSync(SCENARIO_LINES_STATE_PATH, 'utf8')) : {};
-  const scenariosStillValid = scenarios.filter(s => !lib.isScenarioResolved(s, lastClose));
-  const scenarioLineIds = await drawScenarioLevels(scenariosStillValid, tacticalBars[tacticalBars.length - 1].time, scenarioLinesState);
-  writeFileSync(SCENARIO_LINES_STATE_PATH, JSON.stringify(scenarioLineIds, null, 2));
 
   // --- Self-feedback loop: log scenarios, check older ones against what
   // actually happened, surface a historical win-rate per scenario type. Adds
@@ -782,6 +786,7 @@ async function main() {
   // setup that existed only to make room for that sketch. Still captures a
   // plain screenshot of the live chart (zones/FVGs/MS markers etc. are
   // still useful to see), just without the arrows.
+  checkpoint('briefing text saved, before chart screenshot');
   let scenarioScreenshotPath = null;
   try {
     mkdirSync('/Users/boogy/briefings', { recursive: true });
@@ -800,6 +805,7 @@ async function main() {
   // return {sent: false, ...} rather than throwing, but wrapping the calls
   // themselves too — belt and suspenders after an unexplained silent failure
   // where the briefing file never got written and no Telegram message arrived.
+  checkpoint('screenshot done, before Telegram send');
   let telegramResult, telegramPhotoResult;
   try {
     telegramResult = await sendTelegramBriefing(briefingText);
@@ -828,7 +834,15 @@ async function main() {
   console.log('\n\n===== BRIEFING TEXT =====\n');
   console.log(briefingText);
 
-  await disconnect();
+  checkpoint('telegram sent, run complete');
+  // disconnect() (client.close() on the CDP WebSocket) observed live,
+  // 06.08.2026, to occasionally hang past the point where everything of
+  // actual value (briefing saved, screenshot, Telegram) already succeeded
+  // — by then it's pure cleanup, not worth risking process.exit(0) never
+  // being reached over. 5s is generous for a local WebSocket close; if it
+  // doesn't resolve by then, exit anyway rather than let cleanup hide a
+  // real success behind what looks like a hang.
+  await Promise.race([disconnect(), sleep(5000)]).catch(() => {});
   process.exit(0);
 }
 
@@ -838,7 +852,15 @@ async function main() {
 // success nor a caught error, so nothing downstream (briefing file, Telegram,
 // even this catch handler) ever fires. Race main() against a hard timeout so
 // a hang becomes a loud, logged failure instead of a silent no-op.
-const GLOBAL_TIMEOUT_MS = 4 * 60 * 1000; // normal runs observed at 30-90s
+// Raised from 4 to 7 minutes (06.08.2026, Teil 38): checkpoint logging
+// (added same session) showed the recurring "hang" is actually the chart
+// screenshot step (captureScreenshot(), no internal timeout of its own)
+// reliably taking ~240s — right at the OLD timeout's edge, twice
+// reproduced live within minutes of each other. Not a true infinite freeze
+// in most cases, just a slow CDP screenshot with zero headroom against the
+// watchdog. 7min keeps a real hang from hanging forever while giving the
+// screenshot ~2x its observed worst case before getting cut off.
+const GLOBAL_TIMEOUT_MS = 7 * 60 * 1000; // normal runs observed at 30-90s; screenshot alone ~240s
 function timeoutAfter(ms) {
   return new Promise((_, reject) => setTimeout(() => reject(new Error(`Globaler Timeout nach ${ms / 1000}s — Skript hing vermutlich fest (z.B. TradingView/CDP reagiert nicht).`)), ms));
 }

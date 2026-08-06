@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 2026-08-05, Teil 37 (User hat TradingView-Chart-Broker auf Tickmill umgestellt, plant spätestens ab Oktober 2026 live mit Tickmill zu handeln — Re-Backtest von B/A/UT/S3/InsideBar auf echter Tickmill-Kurshistorie + Einrechnung von Tickmills realem DE40-Spread [0,91pt]. Kernbefund: B/A/S3 überstehen den Broker-Wechsel UND echte Kosten mit weiter klar positivem ExpR; UT [+0,024R→−0,011R] und InsideBar [+0,105R→+0,002R] verlieren ihre Kante fast vollständig nach Kosten — beide waren bisher die vielversprechendsten Kaspareit-Live-Test-Funde, das kippt jetzt. Live-System selbst brauchte keine Code-Änderung für den Broker-Wechsel [war nie GBEBROKERS-hartcodiert]. Details in Teil 37 unten.) Teil 36 (Live-Test-Modus für ALLE verbleibenden Strategien eingerichtet — S2, S4 [beide Richtungen], S5, DailyDax, VCP [alle 3 Presets], InsideBar. User-Entscheidung: auch die eindeutig abgelehnten Funde live beobachten, gleicher Präzedenzfall wie S1 [Bar-Level-Simulation könnte zu grob gewesen sein]. 6 neue Checker + Jobs, alle bootstrap+kickstart-verifiziert [Exit 0], `ms-check` unbeeinflusst. Jetzt 13 launchd-Jobs insgesamt. `insidebar_engine.mjs` bekam eine neue `computeFilterState()`-Exportfunktion [regressionsfrei verifiziert], `dailydax_engine.mjs`s `resample()` wurde exportiert. Teil 35: InsideBar M1-Feingranularitäts-Verifikation — bestätigt, gleiches Muster wie S3s Teil 26: nur 2/105 Trades kippen, feine Simulation sogar leicht besser. InsideBar ist damit neben S3 der am gründlichsten geprüfte Fund der Aufarbeitung. Teil 34: S4 Filter/Pyramiding-Sweep — Root-Cause-Korrektur zu Teil 31: der Flaschenhals war `maxOpenTrades=1` [Baseline-Vereinfachung], nicht die Magic-Trend-Filter; LONG auch gelockert keine belastbare Edge [Regime-Artefakt], SHORT schwächeres, nicht robust bestätigtes Signal. Teil 33: InsideBar kombinierter Sweep — breiteste/dichteste Robust-Nachbarschaft der Aufarbeitung [74% Beide-Fenster-positiv]. Teil 32: InsideBar gebaut — **damit alle 8 ursprünglichen Kaspareit-Strategien mindestens einmal gebaut+gebacktestet.** Teil 31: S4 gebaut — reale Strategie ist "Xpct"/DC-RSI auf H4, nicht die SuperTrend-Sektion. Teil 30: S2 kombinierter Sweep — eindeutigste "keine Edge"-Bestätigung der Aufarbeitung [0/1.500 Kombinationen beide Fenster positiv]. Teil 29: S2 gebaut — klar KEINE Edge. Teil 28: Kaspareit-Quellen dauerhaft nach `kaspareit-docs/` kopiert. Teil 24-27: S3 gebaut+gesweept+15m-verifiziert+**Live-Test-Modus aktiv**. Ältere Historie siehe jeweilige Teil-Abschnitte unten.)
+**Stand:** 2026-08-06, Teil 38 (Wiederholtes TradingView/CDP-Freeze-Problem [seit Teil 8/9 bekannt, nie root-cause-geklärt, inzwischen mehrfach pro Woche inkl. mind. 5 unbemerkt fehlgeschlagener evening-sync-Läufe in Folge] adressiert: Checkpoint-Diagnose-Logging in `run.mjs` [9 Marker], `start-with-tv.mjs` läuft `run.mjs` jetzt als Kindprozess mit Selbstheilung [Neustart+Retry bei Fehlschlag] + Telegram-Fehleralarm bei endgültigem Scheitern. Live-Testreihe fand und fixte zwei konkrete Beiträge zum Symptom: `GLOBAL_TIMEOUT_MS` 4→7min [Screenshot-Schritt hatte keinen Puffer mehr] und `disconnect()` gegen 5s-Timeout gehärtet [konnte nach erfolgreichem Lauf noch `process.exit(0)` blockieren]. Keine bestätigte Root-Cause-Lösung für das Freeze selbst, aber funktionierende Selbstheilung+Sichtbarkeit. 4 echte Live-Kickstarts verifiziert, Unit-Suite 141/141 grün. Details in Teil 38.) Teil 37 (User hat TradingView-Chart-Broker auf Tickmill umgestellt, plant spätestens ab Oktober 2026 live mit Tickmill zu handeln — Re-Backtest von B/A/UT/S3/InsideBar auf echter Tickmill-Kurshistorie + Einrechnung von Tickmills realem DE40-Spread [0,91pt]. Kernbefund: B/A/S3 überstehen den Broker-Wechsel UND echte Kosten mit weiter klar positivem ExpR; UT [+0,024R→−0,011R] und InsideBar [+0,105R→+0,002R] verlieren ihre Kante fast vollständig nach Kosten — beide waren bisher die vielversprechendsten Kaspareit-Live-Test-Funde, das kippt jetzt. Live-System selbst brauchte keine Code-Änderung für den Broker-Wechsel [war nie GBEBROKERS-hartcodiert]. Details in Teil 37 unten.) Teil 36 (Live-Test-Modus für ALLE verbleibenden Strategien eingerichtet — S2, S4 [beide Richtungen], S5, DailyDax, VCP [alle 3 Presets], InsideBar. User-Entscheidung: auch die eindeutig abgelehnten Funde live beobachten, gleicher Präzedenzfall wie S1 [Bar-Level-Simulation könnte zu grob gewesen sein]. 6 neue Checker + Jobs, alle bootstrap+kickstart-verifiziert [Exit 0], `ms-check` unbeeinflusst. Jetzt 13 launchd-Jobs insgesamt. `insidebar_engine.mjs` bekam eine neue `computeFilterState()`-Exportfunktion [regressionsfrei verifiziert], `dailydax_engine.mjs`s `resample()` wurde exportiert. Teil 35: InsideBar M1-Feingranularitäts-Verifikation — bestätigt, gleiches Muster wie S3s Teil 26: nur 2/105 Trades kippen, feine Simulation sogar leicht besser. InsideBar ist damit neben S3 der am gründlichsten geprüfte Fund der Aufarbeitung. Teil 34: S4 Filter/Pyramiding-Sweep — Root-Cause-Korrektur zu Teil 31: der Flaschenhals war `maxOpenTrades=1` [Baseline-Vereinfachung], nicht die Magic-Trend-Filter; LONG auch gelockert keine belastbare Edge [Regime-Artefakt], SHORT schwächeres, nicht robust bestätigtes Signal. Teil 33: InsideBar kombinierter Sweep — breiteste/dichteste Robust-Nachbarschaft der Aufarbeitung [74% Beide-Fenster-positiv]. Teil 32: InsideBar gebaut — **damit alle 8 ursprünglichen Kaspareit-Strategien mindestens einmal gebaut+gebacktestet.** Teil 31: S4 gebaut — reale Strategie ist "Xpct"/DC-RSI auf H4, nicht die SuperTrend-Sektion. Teil 30: S2 kombinierter Sweep — eindeutigste "keine Edge"-Bestätigung der Aufarbeitung [0/1.500 Kombinationen beide Fenster positiv]. Teil 29: S2 gebaut — klar KEINE Edge. Teil 28: Kaspareit-Quellen dauerhaft nach `kaspareit-docs/` kopiert. Teil 24-27: S3 gebaut+gesweept+15m-verifiziert+**Live-Test-Modus aktiv**. Ältere Historie siehe jeweilige Teil-Abschnitte unten.)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)
 **Status:** ✅ Produktiv (`launchd`). Zwei aktive, backtestete Strategien: **B** (Fresh-Zone-Fade, 71,4% WR/+0,43R, 6 Monate validiert) und **A** (Trend-Reversal an POI, 34,9% WR/+0,13R, ~2 Monate validiert — kleinere Stichprobe, moderat statt stark). D bleibt technisch aktiv, feuert aber praktisch nie. Briefing referenziert zusätzlich die User-eigenen ORB/VWAP-Indikatoren (Teil 7). Das ursprüngliche UT-Bot+SMI+EMA-Momentum-EA (Teil 14) trug anfangs auch den Namen "Strategie C" — nie live gegangen (negative Expectancy), Buchstabe daher wieder frei; wird ab hier nur noch als "UT-Bot+SMI+EMA-EA" bezeichnet, siehe Namens-Hinweis in Teil 14. **Kaspareit-Trading-EA-Bibliothek** (S1–S5, VCP, UT, DailyDax, InsideBar — User hat bezahlte Mitgliedschaft, 8 kommerzielle MT5-EAs) wird schrittweise aus PDFs/Set-Files nachgebaut. **Kaspareit S1 läuft jetzt live im Test-Modus unter dem Namen "Strategie C"** (`com.boogy.de40-strategie-c-check`, alle 15 Min, DE40 H1, klar markierte 🧪-Telegram-Alerts) — sammelt echte Signal-Daten, siehe Teil 16. **Kaspareit UT läuft ebenfalls live im Test-Modus** (`com.boogy.de40-ut-check`, alle 15 Min, DE40 15m, gleiches 🧪-Alert-Muster) — siehe Teil 19-21; UT ist der bisher stärkste, am wenigsten fragile Backtest-Fund der gesamten Kaspareit-Aufarbeitung (breite Train+Test-positive Nachbarschaft, 5/6 Monate stabil), aber weiterhin nur ein Train/Test-Split, kein .set-File. S5/DailyDax bleiben reine Backtest-Artefakte (kein Live-Test bisher). **Kaspareit S3 läuft jetzt ebenfalls live im Test-Modus** (`com.boogy.de40-s3-check`, alle 15 Min, DE40 H1-Entry/H4-Magic-Trend-Filter, gleiches 🧪-Alert-Muster) — siehe Teil 24-27; der bisher am gründlichsten geprüfte Fund nach UT (kombinierter Sweep + dedizierte 15m-Feingranularitäts-Reverifikation, deren einziger Vorbehalt sich nicht bestätigte), aber weiterhin nur ein Train/Test-Split. **Kaspareit S2 zeigt nach vollem Sweep (Teil 29+30) eindeutig KEINE Edge** — 0/1.500 Kombinationen Train+Test beide positiv, klarste Ablehnung der gesamten Aufarbeitung, nicht weiterverfolgt auf DE40 H1. **Kaspareit S4 ist jetzt gebaut+gebacktestet** (Teil 31) — reale Strategie ist "Xpct"/DC-RSI auf H4 (nicht die SuperTrend-Sektion), aber nur 5/9 Trades über 14 Monate, zu wenig für jede Aussage. Fahrplan für die verbleibende Strategie (InsideBar) steht am Ende von Teil 16. **Broker-Wechsel auf Tickmill (Teil 37, 05.08.2026):** User handelt spätestens ab Oktober 2026 live über Tickmill — Live-Chart läuft bereits auf `TICKMILL:DE40` (keine Code-Änderung nötig, System war nie broker-hartcodiert). Re-Backtest + echte Kosteneinrechnung (Tickmill DE40 Spread 0,91pt) zeigt: B/A/S3 bleiben klar positiv, aber **UT [+0,024R→−0,011R] und InsideBar [+0,105R→+0,002R] verlieren ihre Kante nach echten Kosten fast vollständig** — beide vorherigen Live-Test-Spitzenreiter sind damit als Oktober-Kandidaten aktuell nicht mehr zu empfehlen, Details in Teil 37.
 
@@ -2947,6 +2947,98 @@ möglich.
 `backtests/apply_tickmill_costs.mjs`, 6× `backtests/data_tickmill_*.json`,
 je Strategie `sim_*_tickmill_results.json`+`_log.json`,
 `backtests/tickmill_cost_adjusted_summary.json`.
+
+---
+
+## 🆕 Teil 38 — Selbstheilung + Diagnose für den TradingView/CDP-Freeze (06.08.2026)
+
+**Auslöser:** Das seit Teil 8/9 (29.07.2026) bekannte, nie root-cause-geklärte
+TradingView/CDP-Freeze-Problem trat jetzt mehrfach pro Woche auf (31.07.,
+05.08. morgens+abends, 06.08.) — inkl. **mindestens 5 unbemerkt in Folge
+fehlgeschlagener evening-sync-Läufe**, da abends niemand manuell nachtriggert.
+User-Frage "gibt es eine Lösung?" ehrlich beantwortet (keine bestätigte
+Root-Cause-Lösung), dann auf Wunsch alle drei vorgeschlagenen Verbesserungen
+umgesetzt: Selbstheilung, Telegram-Fehleralarm, Diagnose-Logging.
+
+### Was gebaut wurde
+
+1. **Checkpoint-Logging in `run.mjs`** — 9 Marker an den CDP-schweren
+   Phasenübergängen (Health-Check, OHLC-Fetch, MS-Alert, Invalidierung,
+   S/D-Lifecycle, Zonen-Zeichnen, Declutter, Screenshot, Telegram). Vorher
+   zeigte der globale Timeout-Handler nur seinen EIGENEN Fehler/Stack, nie
+   wo `main()` tatsächlich feststeckte.
+2. **`start-with-tv.mjs` läuft `run.mjs` jetzt als Kindprozess** (`spawn`
+   statt `import()`), damit der Wrapper den Exit-Code sehen kann. Schlägt
+   Versuch 1 fehl: `pkill -9 -f TradingView` + Neustart (bis zu 2
+   Wiederholungen, da ein Kaltstart nach hartem Kill live beobachtet länger
+   als ensureTradingViewReady()s normale 60s brauchen kann) + Versuch 2.
+   Scheitert auch der (oder wird TradingView nach dem Neustart gar nicht
+   mehr rechtzeitig bereit), geht eine Telegram-Warnung raus — exakt die
+   Handlung, die bisher jedes Mal manuell ausgeführt wurde.
+
+### Live-Testreihe — der Diagnose-Fund war sofort wertvoll
+
+Vier Live-Kickstarts von `morning-briefing` zum Testen:
+
+- **Test 1:** Erster Versuch hing exakt bei "Screenshot fertig, vor
+  Telegram-Versand" nach ~240s (240,1s) — die Checkpoints zeigten zum
+  ersten Mal, dass NICHT irgendein zufälliger Punkt hängt, sondern
+  praktisch der gesamte Rest des Laufs (OHLC-Fetch bis Briefing-Text) in
+  unter 5s durchläuft, dann `captureScreenshot()` fast den kompletten
+  4-Minuten-Timeout aufbraucht. Selbstheilung griff korrekt: Exit
+  erkannt, `pkill`, Neustart eingeleitet.
+- **Test 2:** Zweiter Versuch hing wieder bei genau demselben Screenshot-
+  Schritt (240,0s) — UND der Neustart-Versuch danach scheiterte selbst
+  zweimal ("Chart-API nach 60s nicht bereit", ein Kaltstart nach `pkill
+  -9` kann offenbar länger als 60s brauchen). Deckte einen echten Bug in
+  der ersten Selbstheilungs-Version auf: der Fehler propagierte am
+  inneren Retry-Handler vorbei zum äußeren generischen Crash-Handler,
+  ohne die vorgesehene spezifische Alarmierung. **Fix:** Neustart bekommt
+  jetzt selbst bis zu 2 Versuche, in try/catch gekapselt, mit klarer
+  eigener Fehlermeldung statt Durchfall zum generischen Handler.
+- **Erkenntnis:** Die ~240,0-240,1s-Übereinstimmung beider Hänger war kein
+  Zufall auf ein festes internes Timeout in `captureScreenshot()` (dort
+  keins gefunden — reine CDP-`Page.captureScreenshot()`-Aufrufe ohne
+  eigene Wartelogik) — sondern der alte `GLOBAL_TIMEOUT_MS` (240s) selbst
+  hatte schlicht keinen Puffer mehr übrig, wenn der Rest des Laufs (v.a.
+  kurz nach einem TradingView-Kaltstart, wenn Renderer/CDP noch
+  nachziehen) länger als üblich braucht. **Fix:** `GLOBAL_TIMEOUT_MS` von
+  4 auf 7 Minuten angehoben.
+- **Test 3 (nach Timeout-Erhöhung):** Kompletter Lauf in ~63s durch,
+  `success: true`, Telegram+Screenshot zugestellt — aber `launchctl
+  print` zeigte danach minutenlang `state = running`, obwohl `pgrep`
+  keinen laufenden Prozess mehr fand. **Ursache identifiziert:**
+  `disconnect()` (CDP-`client.close()`) kann nach getaner Arbeit selbst
+  hängen und damit `process.exit(0)` verzögern/verhindern — ein
+  plausibler Erklärungsansatz für einen Teil der historischen "Hänger",
+  bei denen die Briefing eigentlich schon fertig war. **Fix:**
+  `disconnect()` läuft jetzt gegen ein eigenes 5s-Timeout
+  (`Promise.race`), danach wird trotzdem `process.exit(0)` erreicht.
+- **Test 4 (nach disconnect()-Fix):** Nach `launchctl bootout`+`bootstrap`
+  (löste eine durch die schnelle Testfolge verklemmte launchd-Job-
+  Zustandsanzeige) kompletter Lauf in ~28s, `success: true`, alles
+  zugestellt, Prozess sauber beendet (`pgrep` bestätigt leer).
+
+**Einordnung:** Keine bestätigte Root-Cause-Lösung für das ursprüngliche
+CDP-Freeze selbst — aber die Diagnose-Session hat zwei konkrete, reale
+Beiträge zum Symptom gefunden und behoben (Timeout ohne Puffer,
+`disconnect()`-Hang), plus eine funktionierende Selbstheilung UND
+Sichtbarkeit (Telegram-Alarm) für den Fall, dass es trotzdem nochmal
+hängt. Ob das ursprüngliche Freeze-Muster (Seite reagiert nicht auf
+CDP-Evaluate, Port bleibt offen) komplett verschwunden ist oder nur
+seltener/harmloser wird, zeigt sich erst über mehrere echte
+09:20/22:00-Läufe — die Checkpoint-Logs sind jetzt da, um das nächste
+Mal sofort zu sehen, wo genau es hängt.
+
+**Verifiziert:** `node --check` + `eslint` auf beiden geänderten Dateien
+0 Fehler. Unit-Suite 141/141 grün (unberührt). 4 echte Live-Kickstarts von
+`morning-briefing` wie oben beschrieben, inkl. eines vollständigen
+Selbstheilungs-Durchlaufs (Versuch 1 schlägt fehl → Neustart → Versuch 2).
+
+**Dateien (geändert):** `scripts/premarket/run.mjs` (9 Checkpoints,
+`GLOBAL_TIMEOUT_MS` 4→7min, `disconnect()` mit 5s-Timeout-Race),
+`scripts/premarket/start-with-tv.mjs` (komplett neu: Kindprozess statt
+`import()`, Selbstheilung mit Retry-Toleranz, Telegram-Fehleralarm).
 
 ---
 
