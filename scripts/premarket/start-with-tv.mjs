@@ -86,7 +86,14 @@ async function main() {
 
   console.log('\n▶️  Starte run.mjs (Versuch 1/2)...\n');
   let code = await runOnce();
-  if (code === 0) return;
+  // process.exit(0), not return — this wrapper's own CDP connection
+  // (ensureTradingViewReady() above) leaves an open handle that otherwise
+  // keeps the process alive indefinitely after main() resolves (found live,
+  // 06.08.2026: a wrapper sat around for ~2h after successfully finishing,
+  // never actually exiting — the OLD import()-based version never hit this
+  // because run.mjs's own process.exit() killed the whole process; now that
+  // run.mjs is a child, the parent needs its own explicit exit).
+  if (code === 0) process.exit(0);
 
   console.error(`\n⚠️  run.mjs fehlgeschlagen (Exit ${code}) — versuche Selbstheilung.`);
   const restarted = await restartTradingView();
@@ -97,7 +104,7 @@ async function main() {
 
   console.log('\n▶️  Starte run.mjs (Versuch 2/2, nach TradingView-Neustart)...\n');
   code = await runOnce();
-  if (code === 0) return;
+  if (code === 0) process.exit(0);
 
   await sendFailureAlert(`run.mjs auch nach Neustart fehlgeschlagen (Exit ${code}, 2 Versuche insgesamt).`);
   process.exit(1);

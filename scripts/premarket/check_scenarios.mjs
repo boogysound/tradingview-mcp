@@ -40,16 +40,14 @@
  * see applySdLevelLifecycle() in state.mjs, shared with run.mjs so the logic
  * itself lives in one place.
  */
-import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { disconnect } from '../../src/connection.js';
+import { setTimeframe } from '../../src/core/chart.js';
 import { ensureTradingViewReady, isXetraOpen, fetchBars } from './utils.mjs';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { buildScenarios } from './briefing.mjs';
 import { checkAndAlertScenarioEntries } from './scenario_alerts.mjs';
-import { drawScenarioLevels, remove, wasActuallyRemoved, verifyDottedLinestyleCode } from './draw.mjs';
-
-const SCENARIO_LINES_STATE_PATH = '/Users/boogy/tradingview-mcp/state/scenario_lines.json';
+import { remove, wasActuallyRemoved, verifyDottedLinestyleCode } from './draw.mjs';
 
 const MIN_15M_BARS = 300;
 const TACTICAL_MAX_AGE_SEC = 2 * 24 * 3600;
@@ -173,11 +171,6 @@ async function main() {
 
   const result = await checkAndAlertScenarioEntries(scenarios);
 
-  const scenarioLinesState = existsSync(SCENARIO_LINES_STATE_PATH) ? JSON.parse(readFileSync(SCENARIO_LINES_STATE_PATH, 'utf8')) : {};
-  const scenariosStillValid = scenarios.filter(s => !lib.isScenarioResolved(s, lastClose));
-  const scenarioLineIds = await drawScenarioLevels(scenariosStillValid, tacticalBars[tacticalBars.length - 1].time, scenarioLinesState);
-  writeFileSync(SCENARIO_LINES_STATE_PATH, JSON.stringify(scenarioLineIds, null, 2));
-
   console.log(JSON.stringify({
     alertsSent: result.alertsSent,
     telegramResults: result.telegramResults,
@@ -187,6 +180,9 @@ async function main() {
     levelsColored,
     dataWarnings,
   }));
+
+  // Leave the chart on 1m after analysis (user-specified, 06.08.2026).
+  await setTimeframe({ timeframe: '1' });
 }
 
 main()

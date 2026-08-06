@@ -18,6 +18,7 @@
  * enough for a 10-minute cadence.
  */
 import { disconnect } from '../../src/connection.js';
+import { setTimeframe } from '../../src/core/chart.js';
 import { ensureTradingViewReady, isXetraOpen, fetchBars } from './utils.mjs';
 import { checkAndAlertTrendResumptionMS } from './ms_alerts.mjs';
 
@@ -40,6 +41,9 @@ async function main() {
     htfSource: result.htfSource,
     ltf: { status: result.ltfMs.status, direction: result.ltfMs.direction },
   }));
+
+  // Leave the chart on 1m after analysis (user-specified, 06.08.2026).
+  await setTimeframe({ timeframe: '1' });
 }
 
 main()

@@ -1,6 +1,6 @@
 # DE40 Pre-Market Trading Strategie — Optimierungs-Handover
 
-**Stand:** 2026-08-06, Teil 38 (Wiederholtes TradingView/CDP-Freeze-Problem [seit Teil 8/9 bekannt, nie root-cause-geklärt, inzwischen mehrfach pro Woche inkl. mind. 5 unbemerkt fehlgeschlagener evening-sync-Läufe in Folge] adressiert: Checkpoint-Diagnose-Logging in `run.mjs` [9 Marker], `start-with-tv.mjs` läuft `run.mjs` jetzt als Kindprozess mit Selbstheilung [Neustart+Retry bei Fehlschlag] + Telegram-Fehleralarm bei endgültigem Scheitern. Live-Testreihe fand und fixte zwei konkrete Beiträge zum Symptom: `GLOBAL_TIMEOUT_MS` 4→7min [Screenshot-Schritt hatte keinen Puffer mehr] und `disconnect()` gegen 5s-Timeout gehärtet [konnte nach erfolgreichem Lauf noch `process.exit(0)` blockieren]. Keine bestätigte Root-Cause-Lösung für das Freeze selbst, aber funktionierende Selbstheilung+Sichtbarkeit. 4 echte Live-Kickstarts verifiziert, Unit-Suite 141/141 grün. Details in Teil 38.) Teil 37 (User hat TradingView-Chart-Broker auf Tickmill umgestellt, plant spätestens ab Oktober 2026 live mit Tickmill zu handeln — Re-Backtest von B/A/UT/S3/InsideBar auf echter Tickmill-Kurshistorie + Einrechnung von Tickmills realem DE40-Spread [0,91pt]. Kernbefund: B/A/S3 überstehen den Broker-Wechsel UND echte Kosten mit weiter klar positivem ExpR; UT [+0,024R→−0,011R] und InsideBar [+0,105R→+0,002R] verlieren ihre Kante fast vollständig nach Kosten — beide waren bisher die vielversprechendsten Kaspareit-Live-Test-Funde, das kippt jetzt. Live-System selbst brauchte keine Code-Änderung für den Broker-Wechsel [war nie GBEBROKERS-hartcodiert]. Details in Teil 37 unten.) Teil 36 (Live-Test-Modus für ALLE verbleibenden Strategien eingerichtet — S2, S4 [beide Richtungen], S5, DailyDax, VCP [alle 3 Presets], InsideBar. User-Entscheidung: auch die eindeutig abgelehnten Funde live beobachten, gleicher Präzedenzfall wie S1 [Bar-Level-Simulation könnte zu grob gewesen sein]. 6 neue Checker + Jobs, alle bootstrap+kickstart-verifiziert [Exit 0], `ms-check` unbeeinflusst. Jetzt 13 launchd-Jobs insgesamt. `insidebar_engine.mjs` bekam eine neue `computeFilterState()`-Exportfunktion [regressionsfrei verifiziert], `dailydax_engine.mjs`s `resample()` wurde exportiert. Teil 35: InsideBar M1-Feingranularitäts-Verifikation — bestätigt, gleiches Muster wie S3s Teil 26: nur 2/105 Trades kippen, feine Simulation sogar leicht besser. InsideBar ist damit neben S3 der am gründlichsten geprüfte Fund der Aufarbeitung. Teil 34: S4 Filter/Pyramiding-Sweep — Root-Cause-Korrektur zu Teil 31: der Flaschenhals war `maxOpenTrades=1` [Baseline-Vereinfachung], nicht die Magic-Trend-Filter; LONG auch gelockert keine belastbare Edge [Regime-Artefakt], SHORT schwächeres, nicht robust bestätigtes Signal. Teil 33: InsideBar kombinierter Sweep — breiteste/dichteste Robust-Nachbarschaft der Aufarbeitung [74% Beide-Fenster-positiv]. Teil 32: InsideBar gebaut — **damit alle 8 ursprünglichen Kaspareit-Strategien mindestens einmal gebaut+gebacktestet.** Teil 31: S4 gebaut — reale Strategie ist "Xpct"/DC-RSI auf H4, nicht die SuperTrend-Sektion. Teil 30: S2 kombinierter Sweep — eindeutigste "keine Edge"-Bestätigung der Aufarbeitung [0/1.500 Kombinationen beide Fenster positiv]. Teil 29: S2 gebaut — klar KEINE Edge. Teil 28: Kaspareit-Quellen dauerhaft nach `kaspareit-docs/` kopiert. Teil 24-27: S3 gebaut+gesweept+15m-verifiziert+**Live-Test-Modus aktiv**. Ältere Historie siehe jeweilige Teil-Abschnitte unten.)
+**Stand:** 2026-08-06, Teil 39 (User-Wunsch: Chart nach jedem periodischen Analyse-Lauf immer auf 1m hinterlassen — 12 Dateien geändert [`run.mjs` + alle 11 Checker], expliziter `setTimeframe('1')` am Ende jedes Erfolgspfads. Live-Testreihe deckte einen zweiten echten Bug auf: `start-with-tv.mjs`s Erfolgspfad beendete sich nur mit `return` statt `process.exit(0)` — seit Teil 38s Umstellung auf `spawn()`-Kindprozess blieb der Elternprozess dadurch nach erfolgreichem Lauf bis zu ~2h als Zombie hängen [gefunden: PID lief seit dem 09:20-Lauf noch]. Gefixt, Live-Kickstart verifiziert [Prozess terminiert jetzt sauber, Chart-Auflösung danach bestätigt 1]. Details in Teil 39.) Teil 38 (Wiederholtes TradingView/CDP-Freeze-Problem [seit Teil 8/9 bekannt, nie root-cause-geklärt, inzwischen mehrfach pro Woche inkl. mind. 5 unbemerkt fehlgeschlagener evening-sync-Läufe in Folge] adressiert: Checkpoint-Diagnose-Logging in `run.mjs` [9 Marker], `start-with-tv.mjs` läuft `run.mjs` jetzt als Kindprozess mit Selbstheilung [Neustart+Retry bei Fehlschlag] + Telegram-Fehleralarm bei endgültigem Scheitern. Live-Testreihe fand und fixte zwei konkrete Beiträge zum Symptom: `GLOBAL_TIMEOUT_MS` 4→7min [Screenshot-Schritt hatte keinen Puffer mehr] und `disconnect()` gegen 5s-Timeout gehärtet [konnte nach erfolgreichem Lauf noch `process.exit(0)` blockieren]. Keine bestätigte Root-Cause-Lösung für das Freeze selbst, aber funktionierende Selbstheilung+Sichtbarkeit. 4 echte Live-Kickstarts verifiziert, Unit-Suite 141/141 grün. Details in Teil 38.) Teil 37 (User hat TradingView-Chart-Broker auf Tickmill umgestellt, plant spätestens ab Oktober 2026 live mit Tickmill zu handeln — Re-Backtest von B/A/UT/S3/InsideBar auf echter Tickmill-Kurshistorie + Einrechnung von Tickmills realem DE40-Spread [0,91pt]. Kernbefund: B/A/S3 überstehen den Broker-Wechsel UND echte Kosten mit weiter klar positivem ExpR; UT [+0,024R→−0,011R] und InsideBar [+0,105R→+0,002R] verlieren ihre Kante fast vollständig nach Kosten — beide waren bisher die vielversprechendsten Kaspareit-Live-Test-Funde, das kippt jetzt. Live-System selbst brauchte keine Code-Änderung für den Broker-Wechsel [war nie GBEBROKERS-hartcodiert]. Details in Teil 37 unten.) Teil 36 (Live-Test-Modus für ALLE verbleibenden Strategien eingerichtet — S2, S4 [beide Richtungen], S5, DailyDax, VCP [alle 3 Presets], InsideBar. User-Entscheidung: auch die eindeutig abgelehnten Funde live beobachten, gleicher Präzedenzfall wie S1 [Bar-Level-Simulation könnte zu grob gewesen sein]. 6 neue Checker + Jobs, alle bootstrap+kickstart-verifiziert [Exit 0], `ms-check` unbeeinflusst. Jetzt 13 launchd-Jobs insgesamt. `insidebar_engine.mjs` bekam eine neue `computeFilterState()`-Exportfunktion [regressionsfrei verifiziert], `dailydax_engine.mjs`s `resample()` wurde exportiert. Teil 35: InsideBar M1-Feingranularitäts-Verifikation — bestätigt, gleiches Muster wie S3s Teil 26: nur 2/105 Trades kippen, feine Simulation sogar leicht besser. InsideBar ist damit neben S3 der am gründlichsten geprüfte Fund der Aufarbeitung. Teil 34: S4 Filter/Pyramiding-Sweep — Root-Cause-Korrektur zu Teil 31: der Flaschenhals war `maxOpenTrades=1` [Baseline-Vereinfachung], nicht die Magic-Trend-Filter; LONG auch gelockert keine belastbare Edge [Regime-Artefakt], SHORT schwächeres, nicht robust bestätigtes Signal. Teil 33: InsideBar kombinierter Sweep — breiteste/dichteste Robust-Nachbarschaft der Aufarbeitung [74% Beide-Fenster-positiv]. Teil 32: InsideBar gebaut — **damit alle 8 ursprünglichen Kaspareit-Strategien mindestens einmal gebaut+gebacktestet.** Teil 31: S4 gebaut — reale Strategie ist "Xpct"/DC-RSI auf H4, nicht die SuperTrend-Sektion. Teil 30: S2 kombinierter Sweep — eindeutigste "keine Edge"-Bestätigung der Aufarbeitung [0/1.500 Kombinationen beide Fenster positiv]. Teil 29: S2 gebaut — klar KEINE Edge. Teil 28: Kaspareit-Quellen dauerhaft nach `kaspareit-docs/` kopiert. Teil 24-27: S3 gebaut+gesweept+15m-verifiziert+**Live-Test-Modus aktiv**. Ältere Historie siehe jeweilige Teil-Abschnitte unten.)
 **System:** TradingView CDP + Node.js Automation (~/tradingview-mcp)
 **Status:** ✅ Produktiv (`launchd`). Zwei aktive, backtestete Strategien: **B** (Fresh-Zone-Fade, 71,4% WR/+0,43R, 6 Monate validiert) und **A** (Trend-Reversal an POI, 34,9% WR/+0,13R, ~2 Monate validiert — kleinere Stichprobe, moderat statt stark). D bleibt technisch aktiv, feuert aber praktisch nie. Briefing referenziert zusätzlich die User-eigenen ORB/VWAP-Indikatoren (Teil 7). Das ursprüngliche UT-Bot+SMI+EMA-Momentum-EA (Teil 14) trug anfangs auch den Namen "Strategie C" — nie live gegangen (negative Expectancy), Buchstabe daher wieder frei; wird ab hier nur noch als "UT-Bot+SMI+EMA-EA" bezeichnet, siehe Namens-Hinweis in Teil 14. **Kaspareit-Trading-EA-Bibliothek** (S1–S5, VCP, UT, DailyDax, InsideBar — User hat bezahlte Mitgliedschaft, 8 kommerzielle MT5-EAs) wird schrittweise aus PDFs/Set-Files nachgebaut. **Kaspareit S1 läuft jetzt live im Test-Modus unter dem Namen "Strategie C"** (`com.boogy.de40-strategie-c-check`, alle 15 Min, DE40 H1, klar markierte 🧪-Telegram-Alerts) — sammelt echte Signal-Daten, siehe Teil 16. **Kaspareit UT läuft ebenfalls live im Test-Modus** (`com.boogy.de40-ut-check`, alle 15 Min, DE40 15m, gleiches 🧪-Alert-Muster) — siehe Teil 19-21; UT ist der bisher stärkste, am wenigsten fragile Backtest-Fund der gesamten Kaspareit-Aufarbeitung (breite Train+Test-positive Nachbarschaft, 5/6 Monate stabil), aber weiterhin nur ein Train/Test-Split, kein .set-File. S5/DailyDax bleiben reine Backtest-Artefakte (kein Live-Test bisher). **Kaspareit S3 läuft jetzt ebenfalls live im Test-Modus** (`com.boogy.de40-s3-check`, alle 15 Min, DE40 H1-Entry/H4-Magic-Trend-Filter, gleiches 🧪-Alert-Muster) — siehe Teil 24-27; der bisher am gründlichsten geprüfte Fund nach UT (kombinierter Sweep + dedizierte 15m-Feingranularitäts-Reverifikation, deren einziger Vorbehalt sich nicht bestätigte), aber weiterhin nur ein Train/Test-Split. **Kaspareit S2 zeigt nach vollem Sweep (Teil 29+30) eindeutig KEINE Edge** — 0/1.500 Kombinationen Train+Test beide positiv, klarste Ablehnung der gesamten Aufarbeitung, nicht weiterverfolgt auf DE40 H1. **Kaspareit S4 ist jetzt gebaut+gebacktestet** (Teil 31) — reale Strategie ist "Xpct"/DC-RSI auf H4 (nicht die SuperTrend-Sektion), aber nur 5/9 Trades über 14 Monate, zu wenig für jede Aussage. Fahrplan für die verbleibende Strategie (InsideBar) steht am Ende von Teil 16. **Broker-Wechsel auf Tickmill (Teil 37, 05.08.2026):** User handelt spätestens ab Oktober 2026 live über Tickmill — Live-Chart läuft bereits auf `TICKMILL:DE40` (keine Code-Änderung nötig, System war nie broker-hartcodiert). Re-Backtest + echte Kosteneinrechnung (Tickmill DE40 Spread 0,91pt) zeigt: B/A/S3 bleiben klar positiv, aber **UT [+0,024R→−0,011R] und InsideBar [+0,105R→+0,002R] verlieren ihre Kante nach echten Kosten fast vollständig** — beide vorherigen Live-Test-Spitzenreiter sind damit als Oktober-Kandidaten aktuell nicht mehr zu empfehlen, Details in Teil 37.
 
@@ -3039,6 +3039,73 @@ Selbstheilungs-Durchlaufs (Versuch 1 schlägt fehl → Neustart → Versuch 2).
 `GLOBAL_TIMEOUT_MS` 4→7min, `disconnect()` mit 5s-Timeout-Race),
 `scripts/premarket/start-with-tv.mjs` (komplett neu: Kindprozess statt
 `import()`, Selbstheilung mit Retry-Toleranz, Telegram-Fehleralarm).
+
+---
+
+## 🆕 Teil 39 — Chart nach jedem Analyse-Lauf auf 1m hinterlassen + Wrapper-Exit-Bug (06.08.2026)
+
+**Auslöser:** User-Wunsch: "Wenn du nach gewissen Zeitabständen bei TV die
+Charts analysierst, hinterlass den Chart bitte immer im 1m Chart." — betrifft
+alle periodischen Läufe (`run.mjs` + alle 11 Checker), die während ihrer
+Analyse durch mehrere Auflösungen schalten (`fetchBars()` wechselt die
+Chart-Auflösung bei jedem Aufruf, ohne danach zurückzusetzen) und bisher auf
+der zufälligen letzten Fetch-Auflösung stehen blieben (`run.mjs` stellte
+sogar aktiv die Auflösung von VOR dem Lauf wieder her).
+
+### Was gebaut wurde
+
+- **12 Dateien geändert** (`run.mjs` + `check_ms.mjs`, `check_scenarios.mjs`,
+  `check_strategie_c.mjs`, `check_ut.mjs`, `check_s2/s3/s4/s5.mjs`,
+  `check_dailydax.mjs`, `check_vcp.mjs`, `check_insidebar.mjs`): jeweils ein
+  expliziter `setTimeframe({ timeframe: '1' })`-Aufruf am Ende jedes
+  erfolgreichen Laufs (und, bei den 9 Kaspareit-Checkern, zusätzlich am
+  "zu wenig Historie"-Frühausstieg) — NICHT jedoch im generischen
+  Error-Catch-Pfad, um dort keinen zusätzlichen CDP-Aufruf mit eigenem
+  Hang-Risiko einzuführen.
+- **`run.mjs` speziell:** der bisherige Zwischenschritt
+  (`setTimeframe(original.resolution)` vor der Zeichenphase) bleibt
+  unverändert — der dort dokumentierte Grund (frisch geschaltete Auflösung
+  kann Shape-Anker auf einen veralteten Balken snappen lassen) gilt weiter
+  für die Zeichenphase. Der neue 1m-Wechsel passiert stattdessen ganz am
+  Ende, NACH Screenshot+Telegram, unmittelbar vor dem bereits bestehenden
+  `disconnect()`-Race (Teil 38).
+
+### Live-Testreihe deckte einen zweiten echten Bug auf
+
+Test von `check_ms.mjs` per Kickstart zeigte zunächst Auflösung 15 statt 1 —
+Ursache war ein zufälliger Schnappschuss mitten in einer Salve von 7-8
+Checker-Jobs, die alle im selben ~13-Minuten-Fenster (12:03-12:16) über
+dieselbe CDP-Verbindung nacheinander abliefen; nach Abklingen der Salve
+zeigte eine erneute Prüfung korrekt Auflösung 1.
+
+**Echter Fund dabei:** Ein `start-with-tv.mjs`-Prozess vom heutigen
+09:20-Lauf (Teil 38 hatte `run.mjs` von `import()` auf `spawn()`
+Kindprozess umgestellt) lief noch **fast 2 Stunden**, obwohl seine Arbeit
+(inkl. Telegram-Versand) längst erfolgreich abgeschlossen war (letzter
+Checkpoint: "telegram sent, run complete"). **Root Cause:** der Erfolgspfad
+in `start-with-tv.mjs` beendete `main()` nur mit `return;` statt
+`process.exit(0)` — bei der alten `import()`-Version killte `run.mjs`s
+eigener `process.exit()` den GESAMTEN (geteilten) Prozess; seit `run.mjs`
+als Kindprozess läuft, beendet dessen `exit()` nur noch das Kind, und der
+Elternprozess (mit seiner eigenen offenen CDP-Verbindung aus
+`ensureTradingViewReady()`) blieb ohne explizites `process.exit(0)` einfach
+hängen, statt natürlich zu terminieren. **Fix:** beide Erfolgspfade in
+`start-with-tv.mjs` (Versuch 1 und Versuch 2) rufen jetzt explizit
+`process.exit(0)` statt `return`. Verwaisten Prozess (PID 51895) manuell
+beendet, Fix per erneutem Live-Kickstart verifiziert: Prozess terminiert
+jetzt sauber (`pgrep` leer, `launchctl` zeigt Exit 0), Chart-Auflösung
+danach bestätigt `1`.
+
+**Verifiziert:** `node --check` + `eslint` auf allen 12 geänderten + der 1
+gefixten Datei (`start-with-tv.mjs`) 0 Fehler. Unit-Suite 141/141 grün.
+Mehrere Live-Kickstarts (`check_ms.mjs`, `morning-briefing` komplett inkl.
+eines echten Selbstheilungs-Durchlaufs) — Chart-Auflösung nach Lauf-Ende
+jeweils per direktem `ensureTradingViewReady()`-Check auf `1` verifiziert,
+kein verwaister Prozess mehr.
+
+**Dateien (geändert):** `scripts/premarket/run.mjs`,
+`scripts/premarket/check_{ms,scenarios,strategie_c,ut,s2,s3,s4,s5,
+dailydax,vcp,insidebar}.mjs`, `scripts/premarket/start-with-tv.mjs`.
 
 ---
 

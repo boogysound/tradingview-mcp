@@ -97,6 +97,8 @@ async function main() {
   // stale/not-yet-rendered bar near the live edge (observed: a rectangle drawn
   // right after this switch landed exactly 10 bars — 9000s on 15min — earlier
   // than requested). Give the chart time to fully catch up before any draw().
+  // (NOT 1m here — that's set at the very end, after drawing is done; see
+  // bottom of main(), user-specified 06.08.2026.)
   await sleep(2000);
 
   let tacticalTf = 15, tacticalBars = bars15;
@@ -834,7 +836,13 @@ async function main() {
   console.log('\n\n===== BRIEFING TEXT =====\n');
   console.log(briefingText);
 
-  checkpoint('telegram sent, run complete');
+  checkpoint('telegram sent, before final 1m switch');
+  // Leave the chart on 1m after analysis (user-specified, 06.08.2026) — all
+  // drawing/screenshot work above is done, so no anchor-snapping risk here.
+  // Same hang-tolerant race as disconnect() below: this is cleanup, not
+  // worth risking process.exit(0) never being reached over.
+  await Promise.race([setTimeframe({ timeframe: '1' }), sleep(3000)]).catch(() => {});
+  checkpoint('chart left on 1m, run complete');
   // disconnect() (client.close() on the CDP WebSocket) observed live,
   // 06.08.2026, to occasionally hang past the point where everything of
   // actual value (briefing saved, screenshot, Telegram) already succeeded
