@@ -9,7 +9,7 @@ import { getBerlinHour, fetchBars, sleep, readOrbVwap } from './utils.mjs';
 import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, wasActuallyRemoved } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
-import { checkAndAlertTrendResumptionMS } from './ms_alerts.mjs';
+import { checkAndAlertTrendResumptionMS, checkAndAlertCounterTrendMS } from './ms_alerts.mjs';
 import { checkAndAlertScenarioEntries } from './scenario_alerts.mjs';
 
 const MIN_15M_BARS = 300; // threshold below which we treat 15min history as "insufficient" (precondition 0.3)
@@ -293,6 +293,10 @@ async function main() {
   // ~10min via its own launchd job).
   checkpoint('OHLC fetched, before Trend-Resumption-MS alert');
   await checkAndAlertTrendResumptionMS({ bars15, bars1h, bars1 });
+  // Counter-Trend-MS-Alert (Teil 40, user-specified) — the resumption alert
+  // above never fires for a shift AGAINST the HTF bias by design; this
+  // checks 5m/15m/1H individually against the same dynamic HTF bias.
+  await checkAndAlertCounterTrendMS({ bars5, bars15, bars1h });
 
   // --- section 9: invalidation/mitigation pass on tracked state ---
   const barsByTf = { 720: bars12h, 240: bars4h, 60: bars1h, 15: bars15, 5: bars5 };

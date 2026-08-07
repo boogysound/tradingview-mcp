@@ -34,6 +34,7 @@ import * as lib from './lib.mjs';
 import { sendTelegramBriefing } from './telegram.mjs';
 
 const MS_ALERTS_STATE_PATH = '/Users/boogy/tradingview-mcp/state/market_shift_alerts.json';
+const COUNTER_TREND_MS_ALERTS_STATE_PATH = '/Users/boogy/tradingview-mcp/state/counter_trend_ms_alerts.json';
 
 function fmtPrice(p) {
   return typeof p === 'number' ? p.toFixed(1) : 'N/A';
@@ -97,4 +98,68 @@ export async function checkAndAlertTrendResumptionMS({ bars15, bars1h, bars1 }) 
   }
 
   return { ltfMs, htfBias, htfSource, alertsSent, telegramResult };
+}
+
+// Counter-Trend-MS-Alert (06.08.2026, Teil 40, user-specified) — the
+// Trend-Resumption alert above (by design, Teil 11) ONLY ever fires when a
+// 1m shift moves back INTO the current HTF bias direction; a confirmed or
+// potential MS AGAINST the HTF bias on 5m/15m/1H (e.g. HTF bullish but 5m
+// just confirmed bearish) was computed internally by detectMarketShift()
+// but never surfaced — found live, 06.08.2026: user spotted a bearish LH-
+// after-HHs pattern that WAS already "confirmed" on 5m/15m/1H, with zero
+// Telegram alert sent for it. Same HTF-bias reference (dynamic 15min/1H
+// pick) as the resumption alert, for consistency — but checks EACH of
+// 5m/15m/1H individually against it, since a counter-trend shift can start
+// on any of them independently (unlike the resumption alert, which only
+// ever needed the 1m LTF).
+function buildCounterTrendAlertText(ms, htfBias, tfLabel) {
+  const arrow = htfBias === 'bullish' ? '↑' : '↓';
+  const dirWord = ms.direction === 'bullish' ? 'bullisch' : 'bärisch';
+  if (ms.status === 'confirmed') {
+    return `⚠️ GEGENTREND-MS bestätigt (${tfLabel}): HTF ${arrow}, aber ${tfLabel} jetzt ${dirWord} bestätigt (Level ${fmtPrice(ms.brokenLevel?.price)}).`;
+  }
+  return `🔹 Potenzieller GEGENTREND-MS (${tfLabel}): HTF ${arrow}, ${tfLabel} könnte auf ${dirWord} drehen — erwartet bei ${fmtPrice(ms.level)}.`;
+}
+
+export async function checkAndAlertCounterTrendMS({ bars5, bars15, bars1h }) {
+  const { bias: htfBias, source: htfSource } = pickHtfBias(bars15, bars1h);
+
+  mkdirSync('/Users/boogy/tradingview-mcp/state', { recursive: true });
+  const alertsState = existsSync(COUNTER_TREND_MS_ALERTS_STATE_PATH) ? JSON.parse(readFileSync(COUNTER_TREND_MS_ALERTS_STATE_PATH, 'utf8')) : {};
+
+  const checks = [
+    { bars: bars5, label: '5m' },
+    { bars: bars15, label: '15m' },
+    { bars: bars1h, label: '1H' },
+  ];
+
+  const results = {};
+  const telegramResults = [];
+  let alertsSent = 0;
+  let stateChanged = false;
+
+  for (const { bars, label } of checks) {
+    const ms = bars && bars.length >= 20 ? lib.detectMarketShift(bars, 2) : { status: 'none' };
+    results[label] = { status: ms.status, direction: ms.direction };
+
+    const isCounterTrend = htfBias && (ms.status === 'confirmed' || ms.status === 'potential') && ms.direction !== htfBias;
+    if (!isCounterTrend) continue;
+
+    const sig = signatureOf(ms);
+    if (alertsState[label] === sig) continue;
+    alertsState[label] = sig;
+    stateChanged = true;
+
+    try {
+      const r = await sendTelegramBriefing(buildCounterTrendAlertText(ms, htfBias, label));
+      telegramResults.push({ tf: label, ...r });
+      alertsSent++;
+    } catch (e) {
+      telegramResults.push({ tf: label, sent: false, error: e.message });
+    }
+  }
+
+  if (stateChanged) writeFileSync(COUNTER_TREND_MS_ALERTS_STATE_PATH, JSON.stringify(alertsState, null, 2));
+
+  return { htfBias, htfSource, results, alertsSent, telegramResults };
 }
