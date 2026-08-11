@@ -3179,6 +3179,53 @@ check_ms.mjs` (zusätzlicher 5m-Fetch + Aufruf), `scripts/premarket/run.mjs`
 
 ---
 
+## 🆕 Teil 41 — Fake-Orphan-Bug im Chart-Reconciliation-Pass (11.08.2026)
+
+**User-Meldung:** Chart wirkte "unaufgeräumt", zu viele PDH-Linien.
+
+**Live-Diagnose:** Per CDP direkt auf dem laufenden Chart geprüft (`getAllShapes()`
++ `getProperties()` je Shape) und gegen `state/zones.json` abgeglichen: von 34
+horizontalen Linien waren nur 10 im State als `active` getrackt, **24 waren
+Karteileichen** — alte PDH/PDL- und umgewandelte S/R-Linien vom 05., 06. und
+07.08., jeweils mit `status: "removed"` und `removed_reason:
+"orphaned_not_on_chart"`, aber physisch noch auf dem Chart vorhanden. Dazu eine
+leere Test-Linie bei Preis=1 (Leftover von `verifyDottedLinestyleCode()`s Probe,
+deren `removeOne()`-Aufruf am Ende offenbar mal fehlgeschlagen war).
+
+**Root Cause:** Der Reconciliation-Pass in `run.mjs` (ganz am Anfang, vor dem
+OHLC-Fetch) vergleicht getrackte State-Einträge gegen eine einzige
+`getLiveShapeIds()`-Abfrage und markiert alles als `removed`, was dort fehlt.
+`ensureTradingViewReady()` prüft aber nur `api_available` — nicht, ob
+TradingView die im Layout gespeicherten Zeichnungen schon zurückgeladen hat.
+Läuft der Reconciliation-Pass kurz nach einem TV-(Re-)Start/Reconnect, kann
+`getAllShapes()` eine unvollständige Liste liefern; real vorhandene Shapes
+sehen dann "fehlend" aus. Die Markierung als `removed` ist danach permanent —
+der State hört auf, das Shape zu tracken, es wird nie wieder vom Chart
+entfernt, und bei jedem neuen Tag kommt eine frische PDH/PDL-Linie dazu, ohne
+dass die alte je verschwindet. Exakt die gleiche Bug-Klasse wie
+`fetchBars()`s Resolution-Switch-Retry (Teil davor bereits dokumentiert) — nur
+hier ungefixt.
+
+**Fix:** `run.mjs`s Reconciliation-Pass macht bei einem ersten scheinbaren
+Fehltreffer jetzt eine zweite `getLiveShapeIds()`-Abfrage nach 3s Wartezeit,
+bevor er einen Eintrag als `removed` verbucht (Muster analog `fetchBars()`s
+Settle-Retry). Kein Overhead im Normalfall (kein Sleep, wenn nichts fehlt).
+
+**Sofortmaßnahme (live):** Die 24 bereits vorhandenen Karteileichen + die
+Test-Probe-Linie direkt per CDP vom laufenden Chart entfernt (`draw.mjs`s
+`remove()`), 96 → 72 Shapes. State musste nicht angepasst werden — die
+State-Einträge waren ja schon (fälschlich) auf `removed` gesetzt.
+
+**Verifiziert:** `node --check` auf `run.mjs` fehlerfrei. Live-Cleanup: alle 24
+Removes bestätigt (`removed: true`, absteigender `remaining_shapes`-Counter
+96→72). Der Fix selbst (zweiter Check nach Sleep) noch nicht live gegen einen
+echten Kaltstart-Fall verifiziert — nächster TV-Neustart ist der reale Test.
+
+**Dateien (geändert):** `scripts/premarket/run.mjs` (Reconciliation-Pass,
+Settle-Retry vor `orphaned_not_on_chart`-Markierung).
+
+---
+
 ## 🆕 UT-Bot + SMI + EMA Momentum-EA (30.07.2026, Teil 14)
 
 **⚠️ Namens-Hinweis (30.07.2026, Teil 16):** Dieses EA hieß ursprünglich

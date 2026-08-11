@@ -55,7 +55,27 @@ async function main() {
   // manually deleted in TradingView): any tracked entry whose shape no longer
   // exists on the chart is marked removed here, so later duplicate-checks and
   // redraws work off reality instead of a stale bookkeeping file.
-  const liveShapeIds = await getLiveShapeIds();
+  //
+  // Re-checks apparent misses once after a settle delay before trusting them:
+  // ensureTradingViewReady() only waits for the chart API object to exist
+  // (api_available), not for the saved layout's drawings to be rehydrated
+  // onto it — same class of quirk as fetchBars()'s resolution-switch retry
+  // below. A single getAllShapes() call right after a TV (re)launch/reconnect
+  // can come back before those drawings load, making live shapes look
+  // "missing". Marking them removed on that false read is permanent: state
+  // stops tracking them, so they're never cleaned off the chart again and a
+  // fresh one gets drawn alongside on the next cycle. Found live 05.-
+  // 07.08.2026: 24 stale PDH/PDL + S/R lines stuck on the chart this way,
+  // each with removed_reason "orphaned_not_on_chart" despite still being
+  // physically present (user-reported clutter, 11.08.2026).
+  let liveShapeIds = await getLiveShapeIds();
+  const trackedNow = () => zonesState.filter(e =>
+    (e.status === 'active' || e.status === 'breached' || e.status === 'historical') &&
+    !liveShapeIds.has(e.tv_entity_id));
+  if (trackedNow().length) {
+    await sleep(3000);
+    liveShapeIds = await getLiveShapeIds();
+  }
   let orphanedCount = 0;
   for (const entry of zonesState) {
     if (entry.status !== 'active' && entry.status !== 'breached' && entry.status !== 'historical') continue;
