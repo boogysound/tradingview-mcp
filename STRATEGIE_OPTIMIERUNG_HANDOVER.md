@@ -3226,6 +3226,150 @@ Settle-Retry vor `orphaned_not_on_chart`-Markierung).
 
 ---
 
+## 🆕 Teil 42 — Trade-Frequenz-Audit über alle Strategien + S4-SHORT-Fix (11.08.2026)
+
+**User-Anfrage:** Alle Strategien so konfigurieren, dass sie mindestens 1
+Trade/Woche liefern, ohne die Backtest-Werte zu verschlechtern.
+
+**Vorgehen:** 5 parallele Recherche-Agenten (je einer für S1/S2, S3/S4,
+S5/UT-Bot, DailyDax/VCP/InsideBar, Szenario A/B/D+Momentum-C) haben pro
+Strategie den aktuellen Live-Config-Stand gegen die vorhandenen
+`sweep_*_results.json`-Dateien geprüft: Trades/Woche aus `total / (Fenster in
+Tagen / 7)`, dann Filter auf `>=1/Woche` und Sortierung nach ExpR/Return, um
+zu sehen ob ein bereits getesteter Kompromiss existiert.
+
+**Ergebnis (Kurzfassung):**
+- **Bereits ≥1/Woche, keine Änderung nötig:** Szenario A (~7,8/Wo, +0,34R),
+  Szenario B (~2,3–2,7/Wo, +0,32–0,43R — die "keine Edge"-Notiz im Dokument
+  betraf die ALTE, seit 28.07 abgelöste Logik), S3 (5,34/Wo, +0,27R nach
+  echten Tickmill-Kosten), UT-Bot 15m (~24/Wo, +0,15R), InsideBar (~60/Wo,
+  aber Kosten fressen die Edge fast komplett auf), DailyDax (1,48/Wo, ExpR
+  marginal/Test-Fenster negativ), S1 (2,42/Wo, leicht negativ).
+- **Unter 1/Woche, echter Sweep-Kompromiss gefunden:** **S4 SHORT** (siehe
+  Fix unten) und VCP ger40Short (Kandidat, s.u., NICHT übernommen).
+- **Unter 1/Woche, KEIN brauchbarer Kompromiss:** S5 (alle 3 Instrumente,
+  0,13–0,48/Wo, jede höherfrequentere Sweep-Variante bricht ein), S4 LONG
+  (~0,39/Wo, einzige "positiven" Kandidaten sind 100%-WR-Regime-Artefakte),
+  Szenario D (~0,08–0,27/Wo, Samples zu klein), Momentum-C alt (Kandidat bei
+  1,69/Wo existiert, aber reines Grid-Search ohne Live-Verifikation, hohes
+  Overfitting-Risiko — nicht übernommen).
+- **Frequenz da, aber keine Edge (anderes Problem):** S2 (0 von 1.500 Sweep-
+  Configs profitabel), VCP ger40Long/tickmillDe40Long, UT-Bot 5m.
+
+**Umgesetzt: S4 SHORT-Config-Swap** (`scripts/premarket/check_s4.mjs`).
+Bisher lief SHORT mit dem unveränderten Teil-34-Baseline-Preset
+(`rsiPeriod=12, useMt1=true`) — nur 31 Trades über 56,14 Wochen ≈ 0,55/Woche,
+Test-Fenster klar negativ (-3,38%, 0% WR), nicht robust. Der Filter-Sweep
+(`sweep_s4_filters_results.json`) enthält einen Kandidaten mit `rsiPeriod=14,
+useMt1=false` (dcLength/useMt2/maxOpenTrades unverändert), der **beide**
+Fenster positiv zeigt: 63 Trades ≈ **1,12/Woche**, Train +0,825%/58,1% WR
+(n=43), Test +0,335%/50% WR (n=20). Unabhängig gegen `s4_engine.mjs` neu
+gerechnet — Zahlen exakt bestätigt (63/43/20, identische Returns/WR). LONG
+bleibt unverändert (jeder Kandidat dort ist ein Regime-Artefakt, keine echte
+Alternative).
+
+**Bewusst NICHT übernommen:** VCP ger40Short-Kandidat (`pivotLookback=20,
+volFactor=0.9, vcpPeriod=20, Filter aus` → 1,82/Wo, beide Fenster positiv,
++0,16R Test) — laut Sweep-Doku "schwach/unbestätigt", dünne Nachbarschaft (nur
+3-4 Zellen statt 75/150 wie bei anderen Strategien), ungeprüfte VCP-Formel-
+Annahme. Als Kandidat vorgemerkt, nicht scharf geschaltet — Rückfrage beim
+User ausstehend.
+
+**Verifiziert:** `node --check` auf `check_s4.mjs` fehlerfrei. Neue SHORT-
+Config unabhängig gegen `s4_engine.mjs` nachgerechnet (siehe oben) — Zahlen
+stimmen exakt mit dem Sweep-Eintrag überein. Noch NICHT live beobachtet (Test-
+Modus-Checker, kein echtes Geld) — nächster `check_s4.mjs`-Lauf ist der reale
+Test.
+
+**Dateien (geändert):** `scripts/premarket/check_s4.mjs` (SHORT-Config-Swap +
+aktualisierter Header-Kommentar + Telegram-Hintergrundzeile).
+
+---
+
+## 🆕 Teil 43 — S5: Indicator-Cache-Kollisionsbug gefixt (11.08.2026)
+
+**Bug (gemeldet von externem Review):** `backtests/s5_engine.mjs`s
+`indicatorCache` war ausschließlich über `JSON.stringify({wprPeriod, stPeriod,
+stMult, ma3Period, useMa3, n: bars.length})` geschlüsselt — `n` ist nur die
+Bar-ANZAHL, kein Content-Fingerprint. Zwei unterschiedliche Instrumente mit
+gleicher Bar-Anzahl UND gleicher struktureller Config bekämen in ein und
+demselben Node-Prozess stillschweigend die WPR/SuperTrend/MA3-Arrays des
+JEWEILS ANDEREN Instruments zurück. Reproduziert: `BASE_CONFIGS.GER40` auf
+`data_eurusd_daily.json` UND `data_gbpjpy_daily.json` (beide 2300 Bars) im
+selben Skript — GBPJPY bekam EURUSDs gecachte Indikatoren und lieferte 0
+Trades statt der korrekten 88 (isoliert verifiziert).
+
+**Fix:** neue `barsFingerprint(bars)`-Helper-Funktion
+(`\`${bars.length}:${bars[0].time}:${bars[bars.length-1].time}\``) ersetzt
+`n: bars.length` im Cache-Key. Nach dem Fix liefert GBPJPY wieder korrekt 88
+Trades trotz identischer Bar-Anzahl wie EURUSD.
+
+**Produktions-Callers geprüft (`strategy_s5.mjs`, `sweep_s5.mjs`,
+`sweep_s5_entry.mjs`):** aktuell NICHT betroffen — jeder Call paart die Bars
+eines Instruments immer mit dessen eigenen, hinreichend unterschiedlichen
+strukturellen Params (`BASE_CONFIGS`' wprPeriod/stPeriod/stMult unterscheiden
+sich zwischen GER40/US30/XAUUSD). Der Bug war nur in einem Ad-hoc-
+Reproduktionsskript sichtbar, nicht in den bestehenden Produktionsskripten.
+
+**Verifiziert:** `node strategy_s5.mjs` neu laufen lassen und
+`sim_s5_results.json` + alle drei `sim_s5_*_log.json` gegen den Stand VOR dem
+Fix gediffed — **byte-identisch** (der Header-Kommentar in
+`sim_s5_results.json` fordert das explizit).
+
+**Gleiches Bug-Pattern in 6 weiteren Engines gefunden** (nur `n: bars.length`
+o.ä. im Cache-Key, kein Content-Fingerprint): `s1_engine.mjs`,
+`s2_engine.mjs`, `s3_engine.mjs` (zwei Bar-Arrays: `bars`+`htfBars`),
+`ut_engine.mjs`, `vcp_engine.mjs`, `dailydax_engine.mjs` (zwei Bar-Arrays:
+`bars30m`+`barsDaily`). Aktuell ebenfalls nicht produktiv ausgelöst (gleiche
+Begründung wie oben), aber latent — als separate Aufgabe vorgemerkt (nicht in
+dieser Sitzung gefixt, da jede Engine ihre eigene Baseline-JSON hat und
+einzeln byte-identisch verifiziert werden müsste).
+
+**Dateien (geändert):** `backtests/s5_engine.mjs` (`barsFingerprint()`-Helper
++ Cache-Key-Fix).
+
+---
+
+## 🆕 Teil 44 — die restlichen 6 Engines: gleicher Cache-Bug gefixt (11.08.2026)
+
+**Kontext:** Direkte Fortsetzung von Teil 43 — dort wurde der `n: bars.length`-
+Cache-Key-Bug in `s5_engine.mjs` gefixt und die 6 anderen betroffenen Engines
+(`s1_engine.mjs`, `s2_engine.mjs`, `s3_engine.mjs`, `ut_engine.mjs`,
+`vcp_engine.mjs`, `dailydax_engine.mjs`) als latent, aber noch nicht gefixt
+vorgemerkt. Live nochmal konkret nachgewiesen (Trade-Frequenz-Scan über 4 neue
+Tickmill-Instrumente, Teil 42-Nachfolge): ein S2-Backtest, der XAUUSD dann
+US500 im selben Node-Prozess lief (beide 4300 H1-Bars) — US500 meldete nur 4
+Trades statt der (isoliert nachgerechneten) korrekten 104 Trades/-0,086R.
+
+**Fix:** gleiches Muster wie Teil 43, eigener `sig(bars)`-Helper pro Datei
+(`` `${bars.length}|${bars[0]?.time}|${bars[bars.length-1]?.time}` ``) ersetzt
+`n: bars.length` (bzw. `n`+`htfN` bei S3, `n30`+`nDaily` bei DailyDax — dort
+zusätzlich auch `barsH3`/`barsH6` mit eigener Signatur abgesichert, die im
+Cache-Key bisher komplett fehlten, nicht nur unzureichend geschlüsselt waren).
+
+**Verifiziert (gleicher Standard wie Teil 43):**
+- Alle 6 Dateien `node --check`-fehlerfrei.
+- `strategy_s1.mjs`, `strategy_s2.mjs`, `strategy_s3.mjs`, `strategy_ut.mjs`,
+  `strategy_vcp.mjs`, `strategy_dailydax.mjs` neu laufen lassen — alle 6
+  zugehörigen `sim_*_results.json` **byte-identisch** zum Stand vor dem Fix.
+- Kollisionsszenario direkt reproduziert und als gefixt bestätigt: XAUUSD
+  dann US500 im selben Prozess (S2, `sweep`-unabhängiges Ad-hoc-Skript) liefert
+  jetzt korrekt 104 Trades/-0,086R für US500 statt der vorherigen falschen 4.
+
+**Bewertung wie in Teil 43:** bestehende Produktionsskripte/Sweeps sind
+aktuell nicht betroffen (jeweils ein Instrument pro Prozess), der Bug greift
+nur bei Multi-Instrument-Batches in einem Prozess — genau das neue Szenario
+seit dem Trade-Frequenz-Audit (Teil 42-Nachfolge). Mit dem Fix sind jetzt
+alle 7 Engines mit diesem Cache-Muster (inkl. S5 aus Teil 43) safe für
+zukünftige Multi-Instrument-Läufe.
+
+**Dateien (geändert):** `backtests/s1_engine.mjs`, `s2_engine.mjs`,
+`s3_engine.mjs`, `ut_engine.mjs`, `vcp_engine.mjs`, `dailydax_engine.mjs`
+(je `sig()`-Helper + Cache-Key-Fix, kein Verhaltensunterschied bei Single-
+Instrument-Läufen).
+
+---
+
 ## 🆕 UT-Bot + SMI + EMA Momentum-EA (30.07.2026, Teil 14)
 
 **⚠️ Namens-Hinweis (30.07.2026, Teil 16):** Dieses EA hieß ursprünglich

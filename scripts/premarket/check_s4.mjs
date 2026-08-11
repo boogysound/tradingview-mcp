@@ -15,12 +15,26 @@
  * explicit request to monitor every built strategy regardless of verdict
  * (30.07.2026: "richte ihn für alle ein").
  *
- * Config: each direction's own real MT1/MT2/dcLength/rsiPeriod from
- * BASE_CONFIGS (unchanged, faithful to the actual presets) — only
+ * Config: LONG runs its own real MT1/MT2/dcLength/rsiPeriod from
+ * BASE_CONFIGS (unchanged, faithful to the actual preset) — only
  * `maxOpenTrades` raised from the baseline's 1 to 10 (the Teil-34 fix),
  * so signals aren't needlessly starved by the single-trade-at-a-time
  * simplification. Runs on DE40 H4 (`Xpct_analysis_TF` in both real
  * presets) with Daily for LONG's MT2 D1 alignment.
+ *
+ * SHORT (Teil 42, 11.08.2026, user-requested trade-frequency pass): swapped
+ * to the filter-sweep's best BOTH-windows-positive candidate at ~1 trade/
+ * week (rsiPeriod 12→14, useMt1 true→false — dcLength/useMt2/maxOpenTrades
+ * unchanged) instead of the Teil-34 baseline preset, which only cleared
+ * ~0.55 trades/week and had a negative, non-robust test window (-3.38%,
+ * 0% WR). New config: 63 trades over the 56.14-week window (≈1.12/week),
+ * train +0.825%/58.1% WR (n=43), test +0.335%/50% WR (n=20) — both
+ * positive, unlike either the baseline or LONG's best candidate (which
+ * stayed a 100%-WR regime artifact at any frequency, so LONG was left
+ * unchanged). Still only a sweep-grid find, not independently re-verified
+ * at finer granularity the way S3 was (Teil 26) — treat as "genuine but
+ * not fully robust," same caveat Teil 34 already carried, just on firmer
+ * ground now that both windows agree instead of one.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { disconnect } from '../../src/connection.js';
@@ -62,7 +76,9 @@ async function main() {
 
   let totalFresh = 0, totalSent = 0;
   for (const direction of ['LONG', 'SHORT']) {
-    const cfg = { ...BASE_CONFIGS[direction], maxOpenTrades: 10 };
+    const cfg = direction === 'SHORT'
+      ? { ...BASE_CONFIGS.SHORT, rsiPeriod: 14, useMt1: false, maxOpenTrades: 10 }
+      : { ...BASE_CONFIGS[direction], maxOpenTrades: 10 };
     const trades = runDirection(bars, direction, cfg, dailyBars);
     const fresh = trades.filter(t => t.entryIdx === lastBarIdx);
     totalFresh += fresh.length;
@@ -82,7 +98,7 @@ async function main() {
         '',
         direction === 'LONG'
           ? 'Hintergrund: LONG zeigt auch nach Filter-/Pyramiding-Lockerung keine belastbare Edge (Teil 34) — das Test-Fenster-Ergebnis wirkte wie ein Regime-Artefakt. Test-Modus läuft trotzdem (analog S1), um echte Live-Daten zu sammeln. Siehe STRATEGIE_OPTIMIERUNG_HANDOVER.md Teil 31/34.'
-          : 'Hintergrund: SHORT zeigt ein schwächeres, nicht robust bestätigtes, aber echtes positives Signal nach Filter-/Pyramiding-Lockerung (Teil 34). Siehe STRATEGIE_OPTIMIERUNG_HANDOVER.md Teil 31/34.',
+          : 'Hintergrund: SHORT läuft seit Teil 42 mit rsiPeriod=14 statt 12 und ohne MT1-Filter (~1,12 Trades/Woche statt ~0,55, beide Backtest-Fenster jetzt positiv) — weiterhin nur ein Sweep-Grid-Fund, nicht fein-granular re-verifiziert wie S3. Siehe STRATEGIE_OPTIMIERUNG_HANDOVER.md Teil 31/34/42.',
       ].join('\n');
 
       const r = await sendTelegramBriefing(text);
