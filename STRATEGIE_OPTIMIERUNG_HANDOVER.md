@@ -3370,6 +3370,121 @@ Instrument-Läufen).
 
 ---
 
+## 🆕 Teil 45 — VCP ger40Short-Kandidat scharf geschaltet (11.08.2026)
+
+**User-Anfrage:** Der in Teil 42 als Kandidat vorgemerkte, aber nicht
+übernommene VCP-ger40Short-Fund soll jetzt live (Test-Modus) laufen.
+
+**Umgesetzt** (`scripts/premarket/check_vcp.mjs`): ger40Short läuft jetzt mit
+dem Entry-Sweep-Bestwert (`pivotLookback=20, volFactor=0.9, vcpPeriod=20,
+useMtfEma1=false`) statt dem Teil-23-Baseline-Preset (`vcpPeriod=80,
+pivotLookback=15, volFactor=1.00, useMtfEma1=true`). ger40Long/
+tickmillDe40Long bleiben unverändert.
+
+**Korrektur während der Verifikation:** Die erste Nachrechnung traf die
+Zahlen NICHT — Grund: `filtersOn` im Sweep-Skript (`sweep_vcp_entry.mjs`)
+steuert `useMtfEma1`, nicht (wie zuerst angenommen) `useTtmSqueeze`/
+`useVolumeFilter` (die bei ger40Short ohnehin schon `false` sind). Mit
+`useMtfEma1: false` explizit gesetzt stimmten die Zahlen exakt: 64 Trades
+über das 35,14-Wochen-Fenster (2025-11-24 bis 2026-07-28) ≈ **1,82/Woche**,
+Train +0,22R/71,4% WR (n=49), Test +0,163R/73,3% WR (n=15) — identisch zum
+Sweep-Eintrag (`sweep_vcp_entry_results.json`, `ger40Short.sweep.best`).
+
+**Weiterhin gültiger Vorbehalt (aus Teil 23/42):** dünne Sweep-Nachbarschaft
+(nur wenige Zellen statt 75/150 wie bei anderen Strategien), und die VCP-
+Kernformel selbst ist eine unbestätigte Annahme — "echt, aber nicht robust
+bestätigt", kein Grund für vollen Vertrauensvorschuss trotz beider positiver
+Fenster.
+
+**Verifiziert:** `node --check` fehlerfrei. Config unabhängig gegen
+`vcp_engine.mjs` nachgerechnet (s.o., nach Korrektur exakte Übereinstimmung).
+Noch NICHT live beobachtet (Test-Modus-Checker, kein echtes Geld) — nächster
+`check_vcp.mjs`-Lauf ist der reale Test.
+
+**Dateien (geändert):** `scripts/premarket/check_vcp.mjs` (ger40Short-Config-
+Swap + aktualisierter Header-Kommentar + preset-spezifische Telegram-
+Hintergrundzeile).
+
+---
+
+## 🆕 Teil 46 — Morning-Briefing/PDH-PDL/FVG/S-R/S-D-Ausfall nach Reboot (12.08.2026)
+
+**User-Meldung:** PDH/PDL/FVG/S/R/S/D-Zeichnung und Morning Briefing liefen
+nicht mehr, kein Briefing heute (12.08., Mi.) erhalten. User will explizit
+KEINEN Nachhol-Lauf für heute — nur, dass es ab jetzt zuverlässig läuft.
+
+**Root Causes (3 unabhängige, alle live diagnostiziert):**
+
+1. **Mac-Reboot** 11.08. 15:21 Uhr (`kern.boottime`) — danach waren **alle 13**
+   `com.boogy.de40-*`-LaunchAgents aus launchd verschwunden (`launchctl list`
+   zeigte 0 Treffer, obwohl alle 13 `.plist`-Dateien unverändert in
+   `~/Library/LaunchAgents/` liegen). Manuell mit `launchctl load` für alle 13
+   neu geladen — sofort wieder sichtbar in `launchctl list`. Warum sie nach
+   dem Reboot nicht automatisch neu geladen wurden, ließ sich nicht abschließend
+   klären (unified log lieferte keine verwertbaren Einträge dazu) — falls das
+   wiederkehrt, wäre `launchctl bootstrap`/`enable` statt des veralteten
+   `load`/`unload`-Interfaces ein möglicher nächster Schritt.
+
+2. **macOS Background Task Management blockiert gezielt 2 der 13 Jobs**
+   (`sfltool dumpbtm`): `com.boogy.de40-morning-briefing` und
+   `com.boogy.de40-evening-sync` stehen auf **Disposition "disallowed"** —
+   alle anderen 11 (MS-Check, S2-S5, UT, VCP, InsideBar, DailyDax,
+   Strategie-C) auf "allowed". Das erklärt exakt das gemeldete Symptom: nur
+   die Zonen-Zeichnung + Briefing (beide über `run.mjs`, getriggert von genau
+   diesen 2 Jobs) waren betroffen, alle anderen Live-Checks liefen weiter.
+   **Kann NICHT per CLI/Agent gefixt werden** — reine macOS-Sicherheits-
+   einstellung, erfordert manuelle Freigabe durch den User in
+   Systemeinstellungen → Allgemein → Anmeldeobjekte & Erweiterungen (bzw.
+   "Zulassen im Hintergrund" je macOS-Version) — dort nach Node.js/
+   tradingview-mcp-Einträgen suchen und beide freigeben. Ohne diesen Schritt
+   wiederholt sich das Problem nach jedem weiteren Reboot.
+
+3. **TradingView selbst war seit dem Reboot eingefroren** (CDP-Port 9222
+   erreichbar, aber `window.TradingViewApi` reagierte nicht — das bekannte
+   Freeze-Muster seit Teil 38) UND **ein echter Bug in
+   `ensureTradingViewReady()`/`launch()` verschlimmerte das**: `launch({kill_
+   existing: false})` prüft nicht, ob TradingView schon läuft, sondern spawnt
+   *immer* eine neue Instanz. Im heutigen Fehlschlag-Log (`morning-
+   briefing.err.log`, 11.08.) sieht man zwei verschiedene PIDs (25792, dann
+   25858) kurz hintereinander — der erste Kaltstart war schlicht noch beim
+   Laden (schon vorher als "kann >60s dauern" dokumentiert, Teil 38/40),
+   aber der Self-Heal-Retry in `start-with-tv.mjs` wertete das als "Start
+   fehlgeschlagen" und feuerte einen ZWEITEN `launch()`-Aufruf — zwei
+   TradingView-Instanzen kämpften um denselben CDP-Port, was genau das
+   beobachtete Freeze-Muster plausibel erklärt (nicht nur heute, sondern
+   vermutlich rückwirkend für einen Teil der in früheren Teilen dokumentierten
+   Freezes).
+
+**Fix** (`scripts/premarket/utils.mjs`, `ensureTradingViewReady()`): neue
+`isTradingViewRunning()`-Prüfung (`pgrep -f`) vor jedem `launch()`-Aufruf —
+läuft TradingView schon (nur noch nicht CDP-bereit), wird NICHT neu
+gestartet, sondern nur weiter gewartet. Zusätzlich Wartebudget von 60s auf
+180s erhöht (`waitForChartApi(120, 1500)` statt `(60, 1000)`), da ein
+legitimer langsamer Kaltstart mehr Zeit braucht, als bisher budgetiert war.
+
+**Sofortmaßnahmen (live, heute):** Alle 13 LaunchAgents neu geladen.
+TradingView hart neu gestartet (`pkill -9`) und erfolgreich neu verbunden
+(379ms Ready-Check nach dem Fix). **Kein Nachhol-Lauf für den 12.08.**
+ausgeführt (User-Wunsch).
+
+**Verifiziert:** `node --check` auf `utils.mjs` fehlerfrei. Live gegen die
+tatsächlich laufende TradingView-Instanz getestet — `ensureTradingViewReady()`
+liefert weiterhin sofort (379ms) wenn schon bereit, kein Regressionsrisiko im
+Happy-Path. Die eigentliche Duplikat-Vermeidung (kein zweiter `launch()`-Call
+bei langsamem, aber laufendem Kaltstart) ist per Code-Review bestätigt, aber
+noch NICHT gegen einen echten reproduzierten Kaltstart-Fall verifiziert —
+das wird erst beim nächsten echten Reboot/Freeze sichtbar.
+
+**Offen (User-Aktion nötig):** Systemeinstellungen-Freigabe für die 2
+"disallowed"-Jobs (siehe Punkt 2) — ohne die bleibt das Grundproblem nach
+jedem Reboot bestehen, unabhängig von allen Code-Fixes hier.
+
+**Dateien (geändert):** `scripts/premarket/utils.mjs`
+(`isTradingViewRunning()`-Check + Wartebudget 60s→180s in
+`ensureTradingViewReady()`).
+
+---
+
 ## 🆕 UT-Bot + SMI + EMA Momentum-EA (30.07.2026, Teil 14)
 
 **⚠️ Namens-Hinweis (30.07.2026, Teil 16):** Dieses EA hieß ursprünglich

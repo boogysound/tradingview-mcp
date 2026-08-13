@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { execSync } from 'child_process';
 import { dirname } from 'path';
 import { healthCheck, launch } from '../../src/core/health.js';
 import { setTimeframe } from '../../src/core/chart.js';
@@ -169,16 +170,45 @@ async function waitForChartApi(maxAttempts, intervalMs) {
   return null;
 }
 
+// launch({kill_existing: false}) unconditionally spawns a fresh TradingView
+// process — it never checks whether one is already running. Found live
+// 12.08.2026 (post-reboot cold start, PDH/PDL/FVG/S/R/S/D drawing + morning
+// briefing silently stopped updating): a slow cold start left the first
+// launch still mid-startup when its 60s budget expired; the caller (this
+// function, called a second time by start-with-tv.mjs's self-heal retry)
+// saw "still not ready" and called launch() again, spawning a SECOND
+// TradingView instance racing the first one for the same CDP port — exactly
+// the kind of instance-collision that produces the recurring "CDP port
+// answers but the page never responds" freeze documented since Teil 38.
+// Checking for an already-running process before spawning another one
+// avoids creating that race in the first place.
+function isTradingViewRunning() {
+  try {
+    execSync('pgrep -f "TradingView.app/Contents/MacOS/TradingView "', { timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function ensureTradingViewReady({ onLog = () => {} } = {}) {
   let health = await waitForChartApi(1, 0);
   if (health) return health;
 
-  onLog('TradingView nicht erreichbar oder Chart-API nicht bereit — starte automatisch...');
-  const result = await launch({ kill_existing: false });
-  onLog(`TradingView gestartet (PID ${result.pid})`);
+  if (isTradingViewRunning()) {
+    onLog('TradingView läuft bereits, Chart-API aber noch nicht bereit — warte weiter (kein Neustart, um keine zweite Instanz zu erzeugen)...');
+  } else {
+    onLog('TradingView nicht erreichbar oder Chart-API nicht bereit — starte automatisch...');
+    const result = await launch({ kill_existing: false });
+    onLog(`TradingView gestartet (PID ${result.pid})`);
+  }
 
-  health = await waitForChartApi(60, 1000);
-  if (!health) throw new Error('TradingView Chart-API nach 60s nicht bereit.');
+  // 180s instead of the previous 60s — a genuinely slow cold start (observed
+  // live: still not ready at 80s) needs more headroom than a warm reconnect,
+  // and waiting longer is strictly safer than the old behavior of giving up
+  // and letting a caller trigger the duplicate-instance race above.
+  health = await waitForChartApi(120, 1500);
+  if (!health) throw new Error('TradingView Chart-API nach 180s nicht bereit.');
   return health;
 }
 
