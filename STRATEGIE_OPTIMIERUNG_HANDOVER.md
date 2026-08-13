@@ -3551,7 +3551,19 @@ Anwendung auf Liveness-Check und `evaluate()`). **Neu:**
 
 ---
 
-## 🐛 Session-Log 13.08.2026, Teil 47 — Morning-Briefing erneut ausgefallen trotz Teil-46-Fix, ~100min TradingView-Downtime
+## 🐛 Session-Log 13.08.2026, Teil 48 — Morning-Briefing erneut ausgefallen trotz Teil-46-Fix, ~100min TradingView-Downtime
+
+**⚠️ Nummerierungs-Hinweis:** Ursprünglich als "Teil 47" geschrieben, aber
+eine parallel laufende zweite Session hat am selben Tag unabhängig ebenfalls
+"Teil 47" belegt (siehe oben, CDP-Timeout-Fix + Pre-Flight-Watchdog,
+`src/connection.js`) — beide Sitzungen diagnostizierten denselben 09:20-
+Ausfall zur gleichen Zeit, ohne voneinander zu wissen. Auf 48 korrigiert,
+um die Kollision aufzulösen; der eigentliche Inhalt unten ist unverändert
+die ursprüngliche, unabhängige Diagnose dieser Sitzung. **Wichtig für
+künftige Sitzungen: mehrere gleichzeitig laufende Claude-Code-Sessions auf
+diesem Repo können sich bei der Teil-Nummerierung UND bei Code-Änderungen
+überschneiden — vor dem Schreiben eines neuen Teils per `grep "^## " ` den
+tatsächlich letzten Stand prüfen, nicht nur den eigenen Kontext.**
 
 **Auslöser:** Der `com.boogy.de40-morning-briefing`-Job (09:20 Berlin) lieferte
 kein Telegram-Briefing. Log zeigt: `start-with-tv.mjs` erkannte korrekt, dass
@@ -3605,6 +3617,155 @@ gefixt:**
 Wiederholungslauf, damit der User trotzdem sein Briefing für den 13.08.
 bekam. `dataWarnings: []` im finalen erfolgreichen Lauf, Unit-Suite nicht
 erneut laufen gelassen (kein Code-Pfad berührt).
+
+---
+
+## 🆕 Teil 49 — Lücke 1 aus Teil 48 gefixt: periodischer Retry über eine einzelne launchd-Ausführung hinaus (13.08.2026)
+
+**Auslöser:** User-Auftrag, explizit Lücke 1 aus Teil 48 zu schließen ("Kein
+Retry über den einzelnen Lauf hinaus") — unabhängig vom Pre-Flight-Watchdog
+aus Teil 47 (`watchdog.mjs`), der nur EINMAL 10 Min VOR dem Haupt-Job
+prüft. Beide Fixes ergänzen sich: der Watchdog verhindert einen Ausfall,
+der schon VOR 09:20 absehbar ist; dieser neue Retry-Mechanismus fängt
+einen Ausfall auf, der trotzdem eintritt (z.B. weil TradingView zwischen
+Watchdog-Check und dem eigentlichen Lauf erst einfriert, oder weil `start-
+with-tv.mjs`s eigene 2 Selbstheilungs-Versuche ausgeschöpft sind, aber sich
+das Problem kurz danach von selbst löst — genau der heute live beobachtete
+Fall, ~100min Downtime gegen ein Selbstheilungsfenster von nur ~15min).
+
+**Fix — drei neue/geänderte Teile:**
+1. **Erfolgs-Marker** (`run.mjs`): direkt nach dem finalen Erfolgs-JSON-Log
+   schreibt `run.mjs` jetzt `state/last_success.json` mit `{date,
+   timestamp}` unter dem Schlüssel `morning` oder `evening` (per
+   `getBerlinHour() < 15` aus der Uhrzeit abgeleitet, da `run.mjs` selbst
+   nicht weiß, welcher der beiden Jobs es aufgerufen hat). Kein Effekt auf
+   den bestehenden Erfolgspfad — nur ein zusätzlicher `writeFileSync`,
+   Fehler dabei landen als `dataWarning`, nicht als Absturz.
+2. **`scripts/premarket/retry_if_needed.mjs`** (neu): liest den Marker,
+   No-Op wenn der heutige Lauf für den übergebenen Slot
+   (`morning`/`evening`) schon erfolgreich war (keine TradingView-Berührung
+   in diesem Fall). Sonst: prüft per `pgrep -f` zusätzlich, ob
+   `start-with-tv.mjs`/`run.mjs` gerade schon läuft (vermutlich noch in
+   eigener Selbstheilung) — falls ja, überspringt dieser Tick ebenfalls,
+   um NICHT einen zweiten, parallelen `start-with-tv.mjs`-Prozess
+   loszutreten (zwei separate launchd-Prozesse, die gleichzeitig
+   TradingView neu starten wollen, sind ein anderer Weg zum selben
+   Doppelstart-Problem, das Teil 46 nur *innerhalb* eines Prozesses
+   gefixt hat). Andernfalls: startet `start-with-tv.mjs` regulär neu
+   (gleicher bewährter Selbstheilungspfad wie der Haupt-Job selbst).
+3. **Zwei neue launchd-Jobs:** `com.boogy.de40-morning-retry`
+   (09:45/10:05/10:25/10:45/11:05/11:25, Mo–Fr — deckt das heute beobachtete
+   ~100min-Fenster komfortabel ab) und `com.boogy.de40-evening-retry`
+   (22:20/22:40/23:00/23:20, Mo–Fr — kürzeres Fenster, um keine
+   Wochentags-Überschneidung über Mitternacht zu riskieren). Beide rufen
+   `retry_if_needed.mjs morning`/`evening` auf, `RunAtLoad: false`.
+
+**Verifiziert:**
+- `node --check` + `npx eslint scripts/premarket/run.mjs
+  scripts/premarket/retry_if_needed.mjs` fehlerfrei, `plutil -lint` auf
+  beiden neuen Plists fehlerfrei.
+- Unit-Suite weiterhin 141/141 grün (kein bestehender Code-Pfad
+  strukturell verändert, nur ein zusätzlicher Schreibvorgang im
+  Erfolgspfad).
+- **No-Op-Pfad live getestet:** `state/last_success.json` mit dem
+  tatsächlichen heutigen Erfolg (11:06 CEST) befüllt, `node
+  retry_if_needed.mjs morning` → korrekt "heute schon erfolgreich
+  gelaufen, kein Eingriff", Exit 0, keine TradingView-Interaktion.
+- **Überlappungs-Schutz live getestet:** ein Dummy-Hintergrundprozess mit
+  `scripts/premarket/run.mjs` im Namen simuliert, `node
+  retry_if_needed.mjs evening` → korrekt "läuft bereits... Tick
+  übersprungen", Exit 0, kein zweiter `start-with-tv.mjs`-Start.
+- **End-to-End über launchd:** `launchctl bootstrap` für beide neuen Jobs
+  erfolgreich, `launchctl kickstart -p .../com.boogy.de40-morning-retry`
+  lief durch den echten No-Op-Pfad (Log zeigt den korrekten No-Op-Eintrag,
+  leeres err-Log, Exit-Status 0 in `launchctl list`).
+- **NICHT live verifiziert:** der eigentliche "Retry startet TradingView
+  wirklich neu"-Pfad — absichtlich nicht ausgelöst, um heute keinen
+  echten, redundanten Lauf (Chart-Redraw + zweite Telegram-Nachricht für
+  denselben Tag) zu erzwingen. Zeigt sich beim nächsten echten
+  Fehlschlag-Fall.
+
+**Nicht in dieser Sitzung angegangen:** Lücke 2 aus Teil 48 (`fetchBars`-
+Resolution-Mismatch nach `setTimeframe()`) bleibt offen für eine
+künftige Sitzung. **Gefixt in Teil 50, gleicher Tag, direkt danach.**
+
+**Dateien (geändert/neu):** `scripts/premarket/run.mjs` (Erfolgs-Marker).
+**Neu:** `scripts/premarket/retry_if_needed.mjs`,
+`~/Library/LaunchAgents/com.boogy.de40-morning-retry.plist`,
+`~/Library/LaunchAgents/com.boogy.de40-evening-retry.plist`,
+`state/last_success.json`.
+
+---
+
+## 🆕 Teil 50 — Lücke 2 aus Teil 48 gefixt: echte Root Cause des `fetchBars`-Resolution-Mismatch war ein toter Parameter in `waitForChartReady()` (13.08.2026)
+
+**Auslöser:** User-Auftrag, direkt im Anschluss an Teil 49 auch Lücke 2 aus
+Teil 48 zu schließen (`fetchBars(240)` bekam nach `setTimeframe(240)`
+manchmal noch 1m-Bars zurück).
+
+**Root Cause gefunden (Code-Review, nicht nur Vermutung):**
+`setTimeframe()` (`src/core/chart.js`) ruft nach `chart.setResolution()`
+bereits `waitForChartReady(null, timeframe)` auf und übergibt die Ziel-
+Auflösung als `expectedTf` — sieht also aus wie ein gezielter Wartemechanismus.
+Tatsächlich hat `waitForChartReady()` (`src/wait.js`) diesen Parameter
+**seit jeher entgegengenommen, aber nirgends im Funktionskörper benutzt** —
+"ready" wurde ausschließlich über einen generischen DOM-Loading-Spinner +
+eine über 2 Polls (400ms) stabile DOM-Bar-Elementanzahl bestimmt, komplett
+unabhängig davon, ob `chart.resolution()` die neue Auflösung überhaupt
+schon zeigt. Bei einem großen Sprung (1m → 240m, wie im Teil-48-Vorfall)
+kann die DOM-Bar-Anzahl schneller "stabil" wirken, als die eigentliche
+Resolution-Umschaltung + Re-Fetch der Historie abgeschlossen ist —
+`setTimeframe()` gab dann `chart_ready: true` zurück, während der Chart
+de facto noch auf der alten Auflösung stand. `fetchBars()`s eigener
+Bar-Abstand-Check (`lib.mjs`/`utils.mjs`, unverändert seit Teil davor)
+fängt das zwar ab und retried bis zu 3×, aber jeder Retry startete mit
+demselben kaputten, viel zu kurzen "ready"-Signal — genau die in Teil 48
+Lücke 2 beschriebene fehlende gezielte Wartezeit nach `setTimeframe()`.
+Betraf nur `setTimeframe()` selbst: von den 5 Aufrufstellen von
+`waitForChartReady()` im gesamten Repo ist das die EINZIGE, die überhaupt
+einen `expectedTf` übergibt (alle anderen — `chart_set_symbol`,
+`batch.js`, `data.js` ×2 — übergeben nur `expectedSymbol`), also kein
+Risiko für Seiteneffekte anderswo durch den Fix.
+
+**Fix** (`src/wait.js`): Die Polling-Schleife liest jetzt zusätzlich
+`chart.resolution()` (über `KNOWN_PATHS.chartApi` aus `connection.js`,
+statt eine weitere Kopie des Pfad-Strings anzulegen) und vergleicht sie
+per String-Vergleich gegen `expectedTf` — solange sie nicht übereinstimmen,
+gilt der Chart als nicht bereit (`stableCount` wird zurückgesetzt, weiter
+gepollt), genau wie beim bestehenden Symbol-Check. Kein Verhaltenswechsel
+für die 4 anderen Aufrufstellen (die übergeben kein `expectedTf`, der neue
+Check ist dort durch `expectedTf != null` deaktiviert).
+
+**Verifiziert:**
+- `node --check` + `npx eslint src/wait.js` fehlerfrei.
+- Unit-Suite weiterhin 141/141 grün.
+- **Live gegen die tatsächlich laufende Instanz getestet** (Chart stand
+  bei Testbeginn auf "1", wie von Teil 39 hinterlassen): `setTimeframe({
+  timeframe: '240'})` → `chart_ready: true` nach 1243ms, `getState()`
+  direkt danach bestätigt `resolution: "240"` (exakter Treffer, nicht nur
+  ein Zufallstreffer nach zusätzlicher Wartezeit) — vorher hätte
+  `waitForChartReady` an dieser Stelle typischerweise schon nach
+  <1s "ready" gemeldet, unabhängig vom tatsächlichen Resolution-Stand.
+  Chart danach wieder auf "1" zurückgesetzt (Teil-39-Konvention), Test
+  hinterlässt keinen abweichenden Zustand.
+- Cumulative Wartebudget für den worst case (alle 3 `fetchBars`-Versuche
+  scheitern weiterhin an der Auflösung) steigt dadurch von vorher
+  faktisch nur ~9s (reine `sleep()`-Summe, da `setTimeframe` kaum wartete)
+  auf jetzt bis zu ~39s (3× bis zu 10s aktives Resolution-Polling
+  zusätzlich zu den bestehenden `sleep()`-Aufrufen) — deckt eine echte,
+  aber "nur" langsame Umschaltung ab; ein vollständiger CDP/TradingView-
+  Freeze (wie der ~100min-Fall aus Teil 48) bleibt weiterhin Aufgabe der
+  Fixes aus Teil 47/49, nicht dieser hier.
+
+**Nebenbefund (nicht behoben, außerhalb des Auftrags):** Ein zweiter,
+unabhängiger `node`-Prozess mit fast identischem Health-Check-Code lief
+während dieser Sitzung parallel (`ps aux`, andere PID/Startzeit) — wie
+schon in Teil 48 bei der Teil-47-Nummerierung vermutet, arbeitet
+offenbar noch eine zweite Session gleichzeitig an diesem Repo. Nur
+lesend beobachtet, nicht beendet oder sonst beeinflusst.
+
+**Dateien (geändert):** `src/wait.js` (`waitForChartReady()` — Resolution-
+Check ergänzt).
 
 ---
 

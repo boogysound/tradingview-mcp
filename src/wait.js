@@ -1,4 +1,4 @@
-import { evaluate } from './connection.js';
+import { evaluate, KNOWN_PATHS } from './connection.js';
 
 const DEFAULT_TIMEOUT = 10000;
 const POLL_INTERVAL = 200;
@@ -29,7 +29,18 @@ export async function waitForChartReady(expectedSymbol = null, expectedTf = null
           || document.querySelector('[class*="title"] [class*="apply-common-tooltip"]');
         var currentSymbol = symbolEl ? symbolEl.textContent.trim() : '';
 
-        return { isLoading: !!isLoading, barCount: barCount, currentSymbol: currentSymbol };
+        // Current chart resolution (13.08.2026, Teil 49/2): the caller-
+        // supplied expectedTf param existed since this function's original
+        // version but was never actually compared against anything — this
+        // is that comparison's data source. Wrapped in try/catch since
+        // chart may not be reachable during the very first poll right
+        // after a setResolution() call.
+        var resolution = null;
+        try {
+          resolution = (${KNOWN_PATHS.chartApi}).resolution();
+        } catch (e) {}
+
+        return { isLoading: !!isLoading, barCount: barCount, currentSymbol: currentSymbol, resolution: resolution };
       })()
     `);
 
@@ -47,6 +58,21 @@ export async function waitForChartReady(expectedSymbol = null, expectedTf = null
 
     // Check symbol match if expected
     if (expectedSymbol && state.currentSymbol && !state.currentSymbol.toUpperCase().includes(expectedSymbol.toUpperCase())) {
+      stableCount = 0;
+      await new Promise(r => setTimeout(r, POLL_INTERVAL));
+      continue;
+    }
+
+    // Not ready if the resolution switch hasn't actually landed yet
+    // (13.08.2026, Teil 49/2 — root cause of the fetchBars "Auflösung
+    // stimmt nicht"-Fehler from Teil 48: setTimeframe() passed expectedTf
+    // into this function, but until now nothing here ever checked it —
+    // the DOM-loading-spinner + bar-count-stability heuristic below could
+    // report "ready" well before chart.resolution() actually updated,
+    // especially on a large jump like 1m -> 240m right after a
+    // freeze/restart). String comparison — chart.resolution() returns the
+    // exact string chart.setResolution() was called with.
+    if (expectedTf != null && state.resolution != null && String(state.resolution) !== String(expectedTf)) {
       stableCount = 0;
       await new Promise(r => setTimeout(r, POLL_INTERVAL));
       continue;

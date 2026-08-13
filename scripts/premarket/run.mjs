@@ -848,6 +848,26 @@ async function main() {
     dataWarnings.push(`Telegram-Fotoversand fehlgeschlagen: ${e.message}`);
   }
 
+  // Success marker for retry_if_needed.mjs (Teil 47 gap-fix, 13.08.2026):
+  // the periodic post-failure retry jobs need to know whether TODAY's
+  // morning/evening run already succeeded, without touching TradingView
+  // just to find out. Slot is inferred from time-of-day rather than passed
+  // in, since run.mjs itself doesn't otherwise know which scheduled job
+  // (morning-briefing vs evening-sync) triggered it. 15:00 Berlin is an
+  // arbitrary but safe cutoff — the two jobs are ~12h apart (09:20/22:00).
+  const successSlot = getBerlinHour() < 15 ? 'morning' : 'evening';
+  const successMarkerPath = '/Users/boogy/tradingview-mcp/state/last_success.json';
+  try {
+    let markers = {};
+    if (existsSync(successMarkerPath)) {
+      try { markers = JSON.parse(readFileSync(successMarkerPath, 'utf8')); } catch { markers = {}; }
+    }
+    markers[successSlot] = { date: dateStr, timestamp: nowIso };
+    writeFileSync(successMarkerPath, JSON.stringify(markers, null, 2));
+  } catch (e) {
+    dataWarnings.push(`Success-Marker (${successSlot}) konnte nicht geschrieben werden: ${e.message}`);
+  }
+
   console.log(JSON.stringify({
     success: true, dataWarnings, tacticalTf, regime,
     regimeSource: storedRegime && !forceRegimeReset && storedRegime.date === regimeDateKey ? 'cached_today' : 'freshly_computed',
