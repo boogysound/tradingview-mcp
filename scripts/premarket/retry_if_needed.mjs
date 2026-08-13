@@ -29,7 +29,7 @@
  */
 import { spawn, execSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { existsSync, readFileSync } from 'fs';
+import { alreadySucceededToday as checkAlreadySucceeded } from './success_marker.mjs';
 
 const slot = process.argv[2];
 if (slot !== 'morning' && slot !== 'evening') {
@@ -38,26 +38,9 @@ if (slot !== 'morning' && slot !== 'evening') {
 }
 
 const START_WITH_TV_PATH = fileURLToPath(new URL('./start-with-tv.mjs', import.meta.url));
-const SUCCESS_MARKER_PATH = fileURLToPath(new URL('../../state/last_success.json', import.meta.url));
 
 function log(msg) {
   console.log(`[retry:${slot}] ${new Date().toISOString()} — ${msg}`);
-}
-
-// Same UTC-date-slice convention as run.mjs's own `dateStr` — must match
-// exactly what run.mjs writes into the marker, not a Berlin-local date.
-function todayDateStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function alreadySucceededToday() {
-  if (!existsSync(SUCCESS_MARKER_PATH)) return false;
-  try {
-    const markers = JSON.parse(readFileSync(SUCCESS_MARKER_PATH, 'utf8'));
-    return markers?.[slot]?.date === todayDateStr();
-  } catch {
-    return false;
-  }
 }
 
 function mainJobAlreadyRunning() {
@@ -70,7 +53,7 @@ function mainJobAlreadyRunning() {
 }
 
 async function main() {
-  if (alreadySucceededToday()) {
+  if (checkAlreadySucceeded(slot)) {
     log('heute schon erfolgreich gelaufen, kein Eingriff.');
     process.exit(0);
   }

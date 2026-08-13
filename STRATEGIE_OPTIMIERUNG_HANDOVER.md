@@ -17,6 +17,16 @@
 Läuft jetzt über **macOS `launchd`**, nicht mehr über Claude-Code-Session-Cron-Jobs
 (die verfallen nach 7 Tagen und sterben mit der Session — für Dauerbetrieb ungeeignet).
 
+**⚠️ Korrektur (13.08.2026, Teil 52):** Der obige Satz ist nicht mehr
+korrekt — der Claude-Code-Scheduled-Task `de40-morning-briefing` läuft
+nachweislich weiterhin parallel zum gleichnamigen launchd-Job (siehe Teil
+52). Seit heute per Guard entschärft (Scheduled-Task überspringt den
+Pipeline-Lauf, falls launchd ihn schon erfolgreich erledigt hat), aber die
+Behauptung "nicht mehr über Claude-Code-Session-Cron-Jobs" oben stimmt
+faktisch nicht. Ob es weitere solche Claude-Code-Scheduled-Tasks parallel
+zu launchd-Jobs gibt (z.B. für MS-Check/Szenario-Check), wurde in dieser
+Sitzung NICHT geprüft — offener Punkt für eine künftige Sitzung.
+
 | Job | Zeitplan | Skript | Zweck |
 |---|---|---|---|
 | `com.boogy.de40-morning-briefing` | Mo–Fr 09:20 Berlin | `start-with-tv.mjs` → `run.mjs` | Voller Lauf: Zonen/OBs/FVGs, Szenario B/D, Screenshot, Telegram-Briefing |
@@ -3813,6 +3823,98 @@ lesend beobachtet, nicht beendet oder sonst beeinflusst.
 
 **Dateien (geändert):** `src/wait.js` (`waitForChartReady()` — Resolution-
 Check ergänzt).
+
+---
+
+## 🆕 Teil 52 — Zwei unkoordinierte Trigger für denselben Morning-Briefing-Job (13.08.2026)
+
+**⚠️ Nummerierungs-Hinweis:** Als "Teil 51" wäre dies mit der parallel
+laufenden zweiten Session kollidiert (siehe deren "Teil 51 —
+Screenshot-Timeout-Fix" oben, direkt nach Teil 47 eingefügt, aber selbst
+schon einmal von 48 auf 51 korrigiert, um NICHT mit diesem Teil 49/50 zu
+kollidieren). Auf 52 gesetzt statt ihre Nummer zu verschieben — ihr Eintrag
+referenziert "Teil 51" nicht im Code (per `grep` in `src/` geprüft), aber
+symmetrisch zu ihrer eigenen Begründung: die höhere, garantiert freie
+Nummer zu nehmen ist der Weg mit den wenigsten Folgeänderungen.
+
+**Auslöser:** User bat darum, den Status des morgigen (14.08., Freitag)
+Morning-Briefing-Laufs zu prüfen. Dabei fiel auf: der Claude-Code-
+Scheduled-Task `de40-morning-briefing` (`~/.claude/scheduled-tasks/
+de40-morning-briefing/SKILL.md`, Cron `15 9 * * 1-5`, ~09:15-09:19 Berlin
+inkl. Jitter) und der launchd-Job `com.boogy.de40-morning-briefing`
+(exakt 09:20 Berlin) sind **zwei komplett unabhängige, unkoordinierte
+Trigger für denselben Pipeline-Lauf**, nur ~1 Minute auseinander. Live
+bestätigt für heute: launchd-Job zeigte `launchctl list`-Exit-Status 1
+(der in Teil 48 diagnostizierte Fehlschlag); der Scheduled-Task ist genau
+der Mechanismus, der diese gesamte heutige Sitzung (Diagnose + manueller
+Retry + Teil 47-51) überhaupt erst ausgelöst hat, per direktem
+`node run.mjs`-Aufruf (nicht über `start-with-tv.mjs`).
+
+**Risiko, falls beide an einem Morgen erfolgreich durchlaufen** (bisher
+nie beobachtet, aber nie ausgeschlossen): (a) die routinemäßige
+Briefing-Nachricht selbst hat **kein** Dedup (nur die MS-/Szenario-*Alerts*
+sind signaturbasiert dedupliziert) — zwei vollständige Telegram-Briefings
+an einem Morgen; (b) zwei unsynchronisierte Prozesse mit Read-Modify-Write
+auf denselben `state/*.json`-Dateien (`zones.json`,
+`scenario_lines.json`, ...) ohne jede Sperre — eine plausible, bisher nie
+verifizierte Erklärung für einen Teil der historischen "doppeltes
+Level"/"Orphan-Shape"-Bugs aus Teil 8/9. Der Handover-Doc-Satz "Läuft
+jetzt über macOS launchd, nicht mehr über Claude-Code-Session-Cron-Jobs"
+(Zeile 17, Stand 28.07.2026) ist damit **nicht mehr korrekt** — dieser
+Scheduled-Task lief heute nachweislich und lieferte den einzigen
+tatsächlich erfolgreichen morgigen... heutigen Lauf.
+
+**User-Entscheidung (per Nachfrage):** beide Trigger bleiben aktiv (der
+Scheduled-Task hat heute genau den Fehler gefangen und behoben, den
+launchds blinde Selbstheilung nicht lösen konnte), aber der Scheduled-Task
+soll zu einem "intelligenten Guard" werden statt blind zu duplizieren.
+
+**Fix:**
+1. **`scripts/premarket/success_marker.mjs`** (neu) — die Marker-Prüf-
+   Logik aus `retry_if_needed.mjs` (Teil 49) extrahiert in ein gemeinsames
+   Modul (`alreadySucceededToday(slot)`, `readMarker(slot)`,
+   `todayDateStr()`), damit beide Konsumenten dieselbe Logik nutzen statt
+   einer zweiten, unabhängig driftenden Kopie. `retry_if_needed.mjs`
+   entsprechend refactored (importiert jetzt aus dem neuen Modul, Verhalten
+   unverändert).
+2. **`scripts/premarket/check_success.mjs`** (neu) — dünner CLI-Wrapper
+   (`node check_success.mjs <morning|evening>`), gibt
+   `{alreadySucceeded, marker}` als JSON aus. Rein lesend, keine
+   TradingView-Berührung.
+3. **`~/.claude/scheduled-tasks/de40-morning-briefing/SKILL.md`** —
+   neuer "Step 0"-Guard vor dem eigentlichen Pipeline-Aufruf: prüft
+   `check_success.mjs morning`, bricht bei `alreadySucceeded: true` ab
+   (kurzer Status-Report statt Pipeline-Lauf), läuft sonst wie bisher
+   weiter — inkl. der Anweisung, bei einem Fehlschlag selbst zu
+   diagnostizieren/zu retryen (das ist der eigentliche Mehrwert dieses
+   Scheduled-Tasks gegenüber launchd, nicht die reine Pipeline-Ausführung).
+   Zusätzlich die veraltete/falsche Notiz "Safe to run multiple times
+   (deduplication prevents duplicate Telegram sends)" korrigiert — das
+   stimmt nicht für die routinemäßige Briefing-Nachricht selbst. Über
+   `mcp__scheduled-tasks__update_scheduled_task` (nicht nur Datei-Edit)
+   aktualisiert, um sicherzustellen, dass der Scheduler den neuen Prompt-
+   Text auch tatsächlich übernimmt.
+
+**Verifiziert:**
+- `node --check` + `npx eslint` auf allen 3 geänderten/neuen `.mjs`-Dateien
+  fehlerfrei. Unit-Suite weiterhin 141/141 grün.
+- `check_success.mjs morning` live getestet: korrekt
+  `{"alreadySucceeded":true,"marker":{"date":"2026-08-13",...}}` (heutiger
+  echter Erfolg von Teil 49). `check_success.mjs evening` korrekt
+  `{"alreadySucceeded":false,"marker":null}`.
+- `retry_if_needed.mjs morning` nach dem Refactor erneut getestet — exakt
+  dasselbe Verhalten wie vor dem Refactor (No-Op, Exit 0).
+- **Nicht separat live verifiziert:** der komplette Scheduled-Task-Ablauf
+  mit dem neuen Step 0 (der Scheduled-Task selbst lässt sich nicht
+  risikofrei manuell antriggern, ohne einen echten Lauf für morgen
+  vorwegzunehmen) — zeigt sich beim nächsten planmäßigen Feuern
+  (14.08., Freitag, ~09:15-09:19 Berlin).
+
+**Dateien (geändert/neu):** `scripts/premarket/retry_if_needed.mjs`
+(Refactor auf gemeinsames Modul). **Neu:** `scripts/premarket/
+success_marker.mjs`, `scripts/premarket/check_success.mjs`,
+`~/.claude/scheduled-tasks/de40-morning-briefing/SKILL.md` (Prompt-Update
+via API, nicht nur Datei).
 
 ---
 
