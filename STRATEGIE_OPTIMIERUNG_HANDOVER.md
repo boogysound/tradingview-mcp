@@ -3485,6 +3485,129 @@ jedem Reboot bestehen, unabhängig von allen Code-Fixes hier.
 
 ---
 
+## 🆕 Teil 47 — CDP-Timeout-Fix + Pre-Flight-Watchdog (13.08.2026)
+
+**Fortsetzung von Teil 46, gleicher Tag:** Der Freigabe-Fix hat gegriffen,
+aber der 09:20-Lauf ist trotzdem komplett ausgefallen — anderer, tieferer
+Bug.
+
+**Root Cause:** `src/connection.js`s `getClient()`-Liveness-Check
+(`client.Runtime.evaluate({expression:'1',...})`) und die Haupt-
+`evaluate()`-Funktion hatten **keinerlei Timeout**. Live beobachtet: der
+09:25-Lauf blieb 20+ Minuten hängen, obwohl aus **frisch gestarteten
+Prozessen heraus** dieselbe TradingView-Instanz jederzeit in unter einer
+Sekunde erreichbar war (mehrfach direkt daneben verifiziert). Der lang
+laufende Wrapper-Prozess hielt einen gecachten `client` fest, dessen
+WebSocket nach einem TradingView-Neustart „darunter" nie sauber schloss —
+`await client.Runtime.evaluate(...)` wartete dann für immer auf eine
+Antwort, die nie kam. Damit war auch der gestrige 180s-Wartebudget-Fix
+(Teil 46) wirkungslos für DIESEN Fehlerfall: ein einzelner hängender Call
+blockiert die ganze Retry-Schleife, egal wie oft man's versucht.
+
+**Fix** (`src/connection.js`): neuer `withTimeout()`-Helper, angewendet auf
+den Liveness-Check (5s) und auf `evaluate()`s Haupt-Call (30s, per
+`opts.timeoutMs` überschreibbar). Timeout im Liveness-Check → `client`
+wird verworfen, nächster Call verbindet neu, statt ewig zu warten.
+
+**Verifiziert:** `node --check` fehlerfrei. Volle Test-Suite (`npm test`,
+95 Tests) einmal mit 1 Fehlschlag (`chart_set_timeframe`, erwartete '1D'
+bekam '240') — beim direkten Re-Run ohne Änderung bestand der Test wieder,
+also State-Abhängigkeit vom gerade laufenden Live-Chart (andere Skripte
+hatten kurz vorher die Auflösung geändert), keine echte Regression durch
+den Fix. `evaluate('1+1')` gegen die laufende Instanz: 62ms, keine
+Verlangsamung im Normalfall.
+
+**Nachgeholt:** heutiges (13.08.) Briefing manuell nachgetriggert, nachdem
+TradingView wieder erreichbar war — PDH/PDL/FVG/S/R/S/D + Telegram-Versand
+bestätigt (Status 200).
+
+**Neu gebaut: Pre-Flight-Watchdog** (User-Wunsch, "beide angehen, erst den
+Watchdog") — `scripts/premarket/watchdog.mjs` + `com.boogy.de40-watchdog.
+plist` (09:10 + 21:50 Uhr, Mo–Fr, je 5 Wochentag-Einträge). Bewusst KEIN
+24/7-Dauer-Monitor — nur ein kurzer Check kurz VOR den beiden Jobs, die
+TradingView tatsächlich brauchen (09:20 Morning-Briefing, 22:00 Evening-
+Sync). Grund: ein harter TradingView-Neustart stört, falls der User den
+Chart gerade manuell beobachtet — ein Dauer-Watchdog hätte das ungefragt
+öfter riskiert als nötig. Ablauf: `healthCheck()` (jetzt dank des obigen
+Fixes selbst nicht mehr unbegrenzt hängend) — wenn gesund: No-Op, sofortiger
+Exit. Wenn nicht: `pkill -9 -f TradingView` + `ensureTradingViewReady()`
+(nutzt den 180s-Budget-Fix aus Teil 46). Telegram-Alarm NUR wenn der
+Neustart selbst fehlschlägt — ein erfolgreicher Neustart braucht keine
+Meldung.
+
+**Verifiziert:** `node --check` fehlerfrei. Dry-Run gegen die laufende,
+gesunde Instanz: korrekt "OK — kein Eingriff nötig", **kein** unnötiger
+Neustart ausgelöst (kritische Sicherheitseigenschaft, extra geprüft).
+`plutil -lint` fehlerfrei, `launchctl load` erfolgreich, BTM-Disposition
+sofort "allowed" (kein manueller Freigabe-Schritt nötig wie bei den 2
+Jobs aus Teil 46). Das eigentliche Neustart-bei-Fehler-Verhalten noch NICHT
+gegen einen echten Ausfall verifiziert — das zeigt sich erst beim nächsten
+echten Problem.
+
+**Dateien (geändert/neu):** `src/connection.js` (`withTimeout()`-Helper +
+Anwendung auf Liveness-Check und `evaluate()`). **Neu:**
+`scripts/premarket/watchdog.mjs`,
+`~/Library/LaunchAgents/com.boogy.de40-watchdog.plist`.
+
+---
+
+## 🐛 Session-Log 13.08.2026, Teil 47 — Morning-Briefing erneut ausgefallen trotz Teil-46-Fix, ~100min TradingView-Downtime
+
+**Auslöser:** Der `com.boogy.de40-morning-briefing`-Job (09:20 Berlin) lieferte
+kein Telegram-Briefing. Log zeigt: `start-with-tv.mjs` erkannte korrekt, dass
+TradingView schon lief, aber die Chart-API nicht bereit war (Teil-46-Fix griff
+also wie vorgesehen — kein zweiter `launch()`-Aufruf, keine Doppel-Instanz).
+Trotzdem scheiterte der Lauf mehrfach: zunächst `fetchBars(240)` mit
+`Auflösung stimmt nicht — kleinster Bar-Abstand 60s < erwartet ~14400s`
+(Chart stand vermutlich noch auf der von Teil 39 bewusst hinterlassenen
+1m-Auflösung, `setTimeframe(240)` hatte entweder nicht gegriffen oder war
+noch nicht propagiert, als `fetchBars` schon las), dann zweimal in Folge
+`TradingView Chart-API nach 180s nicht bereit` (beide Selbstheilungs-
+Versuche innerhalb des einen Laufs ausgeschöpft), zuletzt der globale
+420s-Timeout. Jeder Fehlschlag löste korrekt einen Telegram-Fehleralarm aus
+— das hat also funktioniert. Insgesamt blieb TradingViews Chart-API von
+ca. 09:25 bis mindestens 09:41 (Prozess-Neustart-Zeitpunkt laut `ps`) und
+faktisch bis zur manuellen Prüfung um 11:05 unbrauchbar — **~100 Minuten
+Ausfall, kein einziger der eingebauten Retry-Versuche kam während dieser
+Zeit durch.**
+
+**Was NICHT die Ursache war:** kein Reboot (anders als Teil 46), keine
+BTM-Blockade (`morning-briefing` lief ja an, alarmierte korrekt), kein
+Doppelstart (Teil-46-Fix hat sichtbar gegriffen).
+
+**Manuelle Wiederherstellung (diese Sitzung, keine Code-Änderung):** Um
+11:05 CEST war der CDP-Port (`http://127.0.0.1:9222/json/version`) wieder
+erreichbar — TradingView hatte sich zwischenzeitlich selbst erholt (dieselbe
+PID-Generation wie um 09:41 lt. `ps`, also nicht durch mich neu gestartet).
+`node scripts/premarket/run.mjs` direkt erneut ausgeführt (nicht über den
+Wrapper, da der Scheduled-Task-Auftrag genau diesen direkten Aufruf
+vorschreibt) — lief diesmal in ~40s durch, alle Deliverables (Telegram
+Text+Foto, Briefing-Datei, Chart-Update) erfolgreich.
+
+**Offen für nächste Sitzung — zwei echte Lücken, keine davon heute
+gefixt:**
+1. **Kein Retry über den einzelnen Lauf hinaus.** `start-with-tv.mjs`
+   erschöpft 2 Selbstheilungs-Versuche *innerhalb* eines launchd-Fires und
+   gibt danach komplett auf bis zum nächsten planmäßigen Termin (22:00
+   evening-sync) — bei einem Freeze, der sich erst nach >1h selbst löst
+   (wie heute), gibt es dazwischen keinen automatischen Versuch mehr. Ein
+   zusätzlicher, deutlich selteneren Kickstart (z.B. alle 20-30 Min per
+   separatem launchd-`StartInterval`, der nur `run.mjs` triggert, solange
+   der letzte Lauf des Tages fehlgeschlagen ist) wäre ein möglicher Fix.
+2. **`fetchBars` prüft Bar-Abstand, aber es fehlt ein gezielter Retry mit
+   erneutem `setTimeframe()` + Wartezeit**, wenn genau dieser Fehler
+   auftritt (Auflösung stimmt nicht) — aktuell zählt das als einer der 3
+   generischen `fetchBars`-Versuche, die alle dieselbe (evtl. zu kurze)
+   Wartezeit nach dem Resolution-Switch haben. Nicht untersucht, ob ein
+   längerer Delay nach `setTimeframe()` das Problem behoben hätte.
+
+**Kein Code geändert in dieser Sitzung** — reine Diagnose + manueller
+Wiederholungslauf, damit der User trotzdem sein Briefing für den 13.08.
+bekam. `dataWarnings: []` im finalen erfolgreichen Lauf, Unit-Suite nicht
+erneut laufen gelassen (kein Code-Pfad berührt).
+
+---
+
 ## 🆕 UT-Bot + SMI + EMA Momentum-EA (30.07.2026, Teil 14)
 
 **⚠️ Namens-Hinweis (30.07.2026, Teil 16):** Dieses EA hieß ursprünglich

@@ -10,6 +10,23 @@ export const CDP_PORT = Number(process.env.TV_CDP_PORT || process.env.CDP_PORT) 
 const MAX_RETRIES = 5;
 const BASE_DELAY = 500;
 
+// Neither the liveness check below nor a plain Runtime.evaluate() call had a
+// timeout — found live 13.08.2026: a long-lived process's cached `client`
+// kept a WebSocket to a TradingView instance that had since been killed and
+// relaunched (different CDP target underneath it); the socket never fired
+// its own close/error, so `await client.Runtime.evaluate(...)` just hung
+// forever. Fresh processes connecting from scratch were fine the whole
+// time — only the one process holding the stale client was stuck, and
+// nothing timed that out. Wrapping the two live-CDP-call sites lets a dead
+// connection be detected and discarded instead of hanging indefinitely.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // Known direct API paths discovered via live probing (see PROBE_RESULTS.md)
 const KNOWN_PATHS = {
   chartApi: 'window.TradingViewApi._activeChartWidgetWV.value()',
@@ -54,7 +71,11 @@ export async function getClient() {
   if (client) {
     try {
       // Quick liveness check
-      await client.Runtime.evaluate({ expression: '1', returnByValue: true });
+      await withTimeout(
+        client.Runtime.evaluate({ expression: '1', returnByValue: true }),
+        5000,
+        'CDP liveness check'
+      );
       return client;
     } catch {
       client = null;
@@ -131,12 +152,16 @@ export async function getTargetInfo() {
 
 export async function evaluate(expression, opts = {}) {
   const c = await getClient();
-  const result = await c.Runtime.evaluate({
-    expression,
-    returnByValue: true,
-    awaitPromise: opts.awaitPromise ?? false,
-    ...opts,
-  });
+  const result = await withTimeout(
+    c.Runtime.evaluate({
+      expression,
+      returnByValue: true,
+      awaitPromise: opts.awaitPromise ?? false,
+      ...opts,
+    }),
+    opts.timeoutMs ?? 30000,
+    'CDP evaluate'
+  );
   if (result.exceptionDetails) {
     const msg = result.exceptionDetails.exception?.description
       || result.exceptionDetails.text
