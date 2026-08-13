@@ -3977,6 +3977,45 @@ watchdog.mjs`. **Geändert (außerhalb des Repos):**
 
 ---
 
+## 🆕 Teil 54 — Selbstverschuldetes Doppel-Briefing-Risiko heute Abend + offene Strukturlücke (13.08.2026)
+
+**Auslöser:** Direkte Folge des in Teil 53 vermerkten Testfehlers: der
+versehentliche echte Aufruf von `retry_if_needed.mjs evening` (21:36 Uhr)
+hat die `evening`-Erfolgsmarke für heute (13.08.) gesetzt. Der reguläre
+`com.boogy.de40-evening-sync`-launchd-Job (22:00, ruft `start-with-tv.mjs`
+**direkt** auf) prüft diese Marke aber gar nicht — hätte also um 22:00
+ein zweites, echtes Abend-Briefing verschickt.
+
+**Root Cause (strukturell, nicht nur heute):** Die Marker-Prüfung
+(`success_marker.mjs`, Teil 51/52) wird bisher NUR von den Retry-Ticks
+(`retry_if_needed.mjs`) und dem Claude-Code-Scheduled-Task-Guard
+(`check_success.mjs`, Teil 52) konsultiert — die eigentlichen,
+ursprünglichen launchd-Haupt-Jobs (`de40-morning-briefing` 09:20,
+`de40-evening-sync` 22:00) selbst haben **keinen** Marker-Check. Das war
+bisher unproblematisch, weil unter normalen Umständen vor 09:20/22:00
+noch nichts anderes gelaufen war — heute hat mein eigener Testfehler genau
+diese bisher unbetretene Lücke sichtbar gemacht.
+
+**Sofortmaßnahme (heute Nacht, befristet):** `com.boogy.de40-evening-sync`
+um 21:42 Uhr per `launchctl unload` deaktiviert (kein zweites Briefing um
+22:00), Wiederaufnahme kurz nach 22:00 per `launchctl load` geplant, damit
+der Job für morgen wieder normal scharf ist. **Reiner Einmal-Workaround
+für heute — kein struktureller Fix.**
+
+**Offen für eine künftige Sitzung:** Die eigentlichen Haupt-Jobs
+(`morning-briefing`, `evening-sync`) sollten denselben Marker-Guard
+bekommen wie die Retry-Ticks — z.B. `start-with-tv.mjs` selbst prüft vor
+dem Start `success_marker.mjs`, oder ein dünner Wrapper analog
+`check_success.mjs` wird in die beiden Haupt-Plists eingebaut. Ohne diesen
+Fix kann jeder zusätzliche, außerplanmäßige Lauf (manueller Test, eine
+dritte parallele Session, ein zweiter Scheduled-Task) jederzeit wieder zu
+einem doppelten Briefing führen, nicht nur bei einem Testfehler wie heute.
+
+**Dateien:** keine Code-Änderung in dieser Notiz — reine Live-Maßnahme
+(`launchctl unload`/`load`) + Dokumentation der offenen Lücke.
+
+---
+
 ## 🆕 UT-Bot + SMI + EMA Momentum-EA (30.07.2026, Teil 14)
 
 **⚠️ Namens-Hinweis (30.07.2026, Teil 16):** Dieses EA hieß ursprünglich
