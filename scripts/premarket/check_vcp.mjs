@@ -16,6 +16,17 @@
  * tickmillDe40Long`) each cycle, all on DE40 H1 — same bars array for all
  * three (no MTF resampling needed, MTF1_Timeframe=H1 in every sampled
  * preset). Each preset's alerts are distinctly labeled.
+ *
+ * ger40Short (Teil 45, 11.08.2026, user-requested): swapped to the entry-
+ * sweep's overall best candidate (`pivotLookback=20, volFactor=0.9,
+ * vcpPeriod=20, useMtfEma1=false` — everything else stays at the ger40Short
+ * baseline) instead of the Teil-23 baseline preset. 64 trades over the
+ * 35.14-week window ≈1.82/week, train +0.22R/71.4% WR (n=49), test
+ * +0.163R/73.3% WR (n=15) — both positive, independently re-verified against
+ * vcp_engine.mjs. Still the same caveat as before: thin sweep neighborhood
+ * (per Teil 23) and an unconfirmed VCP-formula assumption — "genuine but not
+ * fully robust," not a confirmed edge. ger40Long/tickmillDe40Long unchanged
+ * (no viable alternative found in their sweeps).
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { disconnect } from '../../src/connection.js';
@@ -54,7 +65,10 @@ async function main() {
   const lastBarIdx = bars.length - 1;
 
   let totalFresh = 0, totalSent = 0;
-  for (const [presetName, cfg] of Object.entries(BASE_CONFIGS)) {
+  for (const [presetName, baseCfg] of Object.entries(BASE_CONFIGS)) {
+    const cfg = presetName === 'ger40Short'
+      ? { ...baseCfg, pivotLookback: 20, volFactor: 0.9, vcpPeriod: 20, useMtfEma1: false }
+      : baseCfg;
     const trades = runBacktest(bars, cfg);
     const fresh = trades.filter(t => t.entryIdx === lastBarIdx);
     totalFresh += fresh.length;
@@ -72,7 +86,9 @@ async function main() {
         `SL: ${fmt(t.sl)} (Risiko: ${fmt(t.risk)} Pkt)`,
         `TP1: ${fmt(t.tp1Price)} | TP2: ${fmt(t.tp2Price)} | Final: ${fmt(t.tpFinalPrice)}`,
         '',
-        'Hintergrund: ger40Long/tickmillDe40Long zeigen im Sweep eindeutig keine Edge, ger40Short einen schwachen, nicht robust bestätigten Silberstreif (Teil 23) — zusätzlich ist die VCP-Kernformel selbst eine unbestätigte Annahme. Test-Modus läuft trotzdem (analog S1), um echte Live-Daten zu sammeln. Siehe STRATEGIE_OPTIMIERUNG_HANDOVER.md Teil 23.',
+        presetName === 'ger40Short'
+          ? 'Hintergrund: ger40Short läuft seit Teil 45 mit dem Entry-Sweep-Bestwert (pivotLookback=20, volFactor=0.9, vcpPeriod=20, MTF-EMA1-Filter aus) statt dem Teil-23-Baseline-Preset — beide Backtest-Fenster positiv (Train +0,22R/71,4% WR, Test +0,16R/73,3% WR, ~1,82 Trades/Woche). Weiterhin nur ein Sweep-Grid-Fund auf dünner Nachbarschaft, plus die VCP-Kernformel selbst ist eine unbestätigte Annahme — "echt, aber nicht robust bestätigt". Siehe STRATEGIE_OPTIMIERUNG_HANDOVER.md Teil 23/45.'
+          : 'Hintergrund: ger40Long/tickmillDe40Long zeigen im Sweep eindeutig keine Edge — Test-Modus läuft trotzdem (analog S1), um echte Live-Daten zu sammeln. Siehe STRATEGIE_OPTIMIERUNG_HANDOVER.md Teil 23.',
       ].join('\n');
 
       const r = await sendTelegramBriefing(text);
