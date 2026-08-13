@@ -3918,6 +3918,65 @@ via API, nicht nur Datei).
 
 ---
 
+## 🆕 Teil 53 — Watchdog (Teil 47) und Retry (Teil 49) konsolidiert (13.08.2026)
+
+**User-Auftrag:** "Behalte eines von beiden, oder eine Kombination, die am
+sinnvollsten ist" — Watchdog (Pre-Flight-Check 10 Min vor den Haupt-Jobs)
+und Retry-Mechanismus (periodischer Nachlauf danach) waren zwei komplett
+getrennte Skripte + Plists, unabhängig voneinander gebaut (verschiedene
+Sitzungen), mit überlappender "TradingView neu starten"-Logik.
+
+**Analyse — beide behalten, aber als EIN Skript statt zwei:** Die beiden
+Mechanismen sind nicht redundant, sondern ergänzen sich zeitlich (Watchdog
+verhindert einen Fehlschlag, der schon VOR 09:20 absehbar ist; Retry fängt
+einen auf, der trotzdem eintritt) — aber sie brauchten keine zwei separaten
+Implementierungen der Neustart-Logik. `retry_if_needed.mjs` bekommt einen
+neuen `--preflight`-Modus (kein Slot-Argument nötig, da reine TradingView-
+Gesundheitsprüfung ohne Pipeline-Lauf): identisches Verhalten wie das
+bisherige `watchdog.mjs` (healthCheck → bei Problem harter Neustart via
+`ensureTradingViewReady()`, Telegram-Alarm nur bei Fehlschlag des
+Neustarts selbst), nur jetzt im selben Skript wie der Post-Failure-Retry.
+Der bestehende Retry-Modus (`morning`/`evening`-Argument) ist unverändert.
+
+**Umgesetzt:**
+- `watchdog.mjs` gelöscht — Logik lebt jetzt als `runPreflight()` in
+  `retry_if_needed.mjs`.
+- `com.boogy.de40-watchdog.plist`: `ProgramArguments` auf
+  `retry_if_needed.mjs --preflight` umgestellt, Zeitplan (09:10/21:50,
+  Mo–Fr) unverändert, **Label bewusst NICHT umbenannt** (um die bereits
+  erteilte macOS-BTM-Freigabe für dieses Label nicht neu anfordern zu
+  müssen — nach `unload`+`load` per `sfltool dumpbtm` bestätigt: weiterhin
+  "allowed", keine erneute Freigabe nötig).
+
+**Verifiziert:**
+- `node --check` fehlerfrei.
+- Preflight-Dry-Run gegen die laufende, gesunde Instanz: korrekt "OK, kein
+  Eingriff nötig" — kein unnötiger Neustart (kritische Eigenschaft, wie
+  schon bei Teil 47 geprüft).
+- Retry-Modus `morning` nach dem Refactor: korrekt "heute schon erfolgreich
+  gelaufen" (No-Op).
+
+**⚠️ Selbstverschuldeter Nebenfall beim Testen:** Beim Verifizieren des
+Retry-Modus wurde `retry_if_needed.mjs evening` versehentlich als echter
+Aufruf (nicht als Trockenlauf) ausgeführt — da die Erfolgsmarke für
+"evening" heute noch nicht gesetzt war, löste das einen VOLLEN, echten
+`start-with-tv.mjs`-Lauf aus: reales Telegram-Briefing verschickt, echte
+Zonen neu gezeichnet/entfernt. Zeitlich unproblematisch (war bereits
+21:36 Uhr, nahe am regulären 22:00-Fenster, Briefing-Inhalt entsprechend
+korrekt), aber ungeplant — und als Folge wird der reguläre 22:00-
+`evening-sync`-Job heute Abend jetzt als "schon erledigt" übersprungen
+(Erfolgsmarke ist gesetzt). Dem User direkt transparent gemeldet. Lektion:
+künftige Verifikation von `retry_if_needed.mjs <slot>` (ohne `--preflight`)
+sollte über eine geschützte Vorbedingung laufen (z.B. Marke vorher
+temporär setzen), nicht als echter Blind-Aufruf.
+
+**Dateien (geändert):** `scripts/premarket/retry_if_needed.mjs`
+(`--preflight`-Modus ergänzt). **Gelöscht:** `scripts/premarket/
+watchdog.mjs`. **Geändert (außerhalb des Repos):**
+`~/Library/LaunchAgents/com.boogy.de40-watchdog.plist`.
+
+---
+
 ## 🆕 UT-Bot + SMI + EMA Momentum-EA (30.07.2026, Teil 14)
 
 **⚠️ Namens-Hinweis (30.07.2026, Teil 16):** Dieses EA hieß ursprünglich
