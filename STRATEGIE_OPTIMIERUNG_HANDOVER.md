@@ -3551,7 +3551,17 @@ Anwendung auf Liveness-Check und `evaluate()`). **Neu:**
 
 ---
 
-## 🆕 Teil 48 — Screenshot-Timeout-Fix (Teil-47-Nachtrag, 13.08.2026)
+## 🆕 Teil 51 — Screenshot-Timeout-Fix (Teil-47-Nachtrag, 13.08.2026)
+
+**⚠️ Nummerierungs-Hinweis:** Ursprünglich als "Teil 48" geschrieben, aber
+eine parallel laufende zweite Session hat am selben Tag unabhängig ebenfalls
+"Teil 48" belegt (Session-Log weiter unten, "Morning-Briefing erneut
+ausgefallen..." + darauf aufbauend Teil 49/50) — beide Sessions haben
+gleichzeitig am selben Repo gearbeitet, ohne voneinander zu wissen. Auf 51
+korrigiert, um die Kollision aufzulösen (die andere Session referenziert
+ihr "Teil 48" bereits mehrfach namentlich in Teil 49/50 — das umzunummerieren
+hätte mehr Folgeänderungen gebraucht als dieses hier). Inhalt unten
+unverändert.
 
 **Kontext:** Nach dem Layout-Verlust (Chart hatte 0 Shapes statt 15, per
 Screenshot-Vergleich bestätigt — vermutlich durch die vielen harten
