@@ -19,7 +19,7 @@ const BASE_DELAY = 500;
 // time — only the one process holding the stale client was stuck, and
 // nothing timed that out. Wrapping the two live-CDP-call sites lets a dead
 // connection be detected and discarded instead of hanging indefinitely.
-function withTimeout(promise, ms, label) {
+export function withTimeout(promise, ms, label) {
   let timer;
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);

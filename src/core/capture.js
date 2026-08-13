@@ -1,7 +1,7 @@
 /**
  * Core screenshot/capture logic.
  */
-import { getClient, evaluate, getChartCollection } from '../connection.js';
+import { getClient, evaluate, getChartCollection, withTimeout } from '../connection.js';
 import { waitForChartRender } from '../wait.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -63,7 +63,12 @@ export async function captureScreenshot({ region, filename, method, waitForRende
   const params = { format: 'png' };
   if (clip) params.clip = clip;
 
-  const { data } = await client.Page.captureScreenshot(params);
+  // client.Page.captureScreenshot() calls the CDP Page domain directly,
+  // bypassing connection.js's evaluate() wrapper — found live 13.08.2026 it
+  // could hang indefinitely same as the pre-fix evaluate()/liveness-check
+  // calls (Teil 47), just via a different code path that Teil 47 didn't
+  // cover. Same withTimeout() treatment here.
+  const { data } = await withTimeout(client.Page.captureScreenshot(params), 30000, 'CDP captureScreenshot');
   writeFileSync(filePath, Buffer.from(data, 'base64'));
 
   return {

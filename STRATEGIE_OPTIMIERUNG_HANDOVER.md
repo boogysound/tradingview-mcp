@@ -3551,6 +3551,43 @@ Anwendung auf Liveness-Check und `evaluate()`). **Neu:**
 
 ---
 
+## 🆕 Teil 48 — Screenshot-Timeout-Fix (Teil-47-Nachtrag, 13.08.2026)
+
+**Kontext:** Nach dem Layout-Verlust (Chart hatte 0 Shapes statt 15, per
+Screenshot-Vergleich bestätigt — vermutlich durch die vielen harten
+`pkill -9`-TradingView-Neustarts beim heutigen Debugging) wurde ein
+Nachzeichnen-Lauf gestartet. Der zeichnete die Zonen erfolgreich neu
+(unabhängig verifiziert: 0 → 12 Live-Shapes), hing aber am eigenen
+Screenshot-Schritt fest — und auch ein separater, frischer Screenshot-Call
+hing endlos.
+
+**Root Cause:** `captureScreenshot()` in `src/core/capture.js` ruft
+`client.Page.captureScreenshot(params)` **direkt** auf — umgeht damit
+`connection.js`s `evaluate()`-Wrapper komplett, also auch dessen
+Teil-47-Timeout-Fix. Gleiche Bug-Klasse, anderer Code-Pfad. Beim Scannen
+nach weiteren betroffenen Stellen (`grep` auf direkte `client.<Domain>.`-
+Aufrufe außerhalb von `connection.js`) eine zweite, identische Stelle in
+`src/core/batch.js` (Batch-Screenshot-Action) gefunden.
+
+**Fix:** `withTimeout()` aus `connection.js` exportiert (war bisher
+modul-intern) und in beiden Stellen (`capture.js`, `batch.js`) um den
+`client.Page.captureScreenshot(...)`-Call gelegt (30s, gleicher Wert wie
+`evaluate()`s Timeout).
+
+**Verifiziert:** `node --check` auf allen 3 Dateien fehlerfrei. Live-Test:
+`captureScreenshot()` gegen die laufende Instanz — 350ms, `success:true`,
+Datei gespeichert. Der Timeout-Pfad selbst (30s-Fehlschlag) wurde nicht
+erzwungen provoziert, da die Screenshot-Funktion zum Testzeitpunkt bereits
+wieder normal schnell antwortete — die eigentliche Absicherung (kein
+endloses Hängen mehr) ist durch Code-Review + den identischen, bereits in
+Teil 47 bewährten Mechanismus abgedeckt.
+
+**Dateien (geändert):** `src/connection.js` (`withTimeout()` jetzt
+exportiert), `src/core/capture.js`, `src/core/batch.js` (beide:
+`withTimeout()` um den direkten `Page.captureScreenshot`-Call).
+
+---
+
 ## 🐛 Session-Log 13.08.2026, Teil 48 — Morning-Briefing erneut ausgefallen trotz Teil-46-Fix, ~100min TradingView-Downtime
 
 **⚠️ Nummerierungs-Hinweis:** Ursprünglich als "Teil 47" geschrieben, aber

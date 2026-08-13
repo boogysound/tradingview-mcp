@@ -1,7 +1,7 @@
 /**
  * Core batch execution logic.
  */
-import { evaluate, evaluateAsync, getClient, getChartApi, getChartCollection, safeString } from '../connection.js';
+import { evaluate, evaluateAsync, getClient, getChartApi, getChartCollection, safeString, withTimeout } from '../connection.js';
 import { waitForChartReady } from '../wait.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -38,7 +38,9 @@ export async function batchRun({ symbols, timeframes, action, delay_ms, ohlcv_co
         if (action === 'screenshot') {
           mkdirSync(SCREENSHOT_DIR, { recursive: true });
           const client = await getClient();
-          const { data } = await client.Page.captureScreenshot({ format: 'png' });
+          // Direct CDP Page domain call, bypasses evaluate()'s timeout — same
+          // fix as capture.js (found live 13.08.2026, Teil 47 follow-up).
+          const { data } = await withTimeout(client.Page.captureScreenshot({ format: 'png' }), 30000, 'CDP captureScreenshot');
           const ts = new Date().toISOString().replace(/[:.]/g, '-');
           const fname = `batch_${symbol}_${tf || 'default'}_${ts}`.replace(/[\/\\]/g, '_') + '.png';
           const filePath = join(SCREENSHOT_DIR, fname);
