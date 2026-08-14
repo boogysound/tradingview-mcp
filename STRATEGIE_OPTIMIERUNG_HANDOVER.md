@@ -3977,6 +3977,56 @@ watchdog.mjs`. **Geändert (außerhalb des Repos):**
 
 ---
 
+## 🆕 Teil 55 — Toten `drawScenarioLevels()`-Code aus `draw.mjs` entfernt (14.08.2026)
+
+**Auslöser:** Beim Einstieg (Statusprüfung nach Teil 54) unstaged Änderungen
+im Working Tree vorgefunden, die niemand dokumentiert hatte — vermutlich
+Rest einer der vielen parallel laufenden Sessions vom 13.08. `draw.mjs`
+hatte die komplette `drawScenarioLevels()`-Funktion (zeichnet Entry/SL/TP-
+Linien für aktive Szenarien A/B/D) sowie die zugehörigen
+`scenario_entry`/`scenario_sl`/`scenario_tp`-Farben unstaged entfernt.
+Nicht einfach committet oder verworfen, sondern erst geprüft (User-Vorgabe,
+[[feedback-ask-when-unsure]]) — per Nachfrage entschieden: fertig machen
+und committen, nicht verwerfen.
+
+**Prüfung:** `grep` über `scripts/`/`src/` bestätigt: kein aktiver Aufrufer
+mehr. `git log -p` zeigt, dass der `drawScenarioLevels`-Import in `run.mjs`
+schon in einem früheren, bereits committeten Commit entfernt wurde — die
+Funktion war also schon vorher toter Code, nur ihre Definition stand noch
+in `draw.mjs`. Einziger verbliebener Bezug: drei Kommentare in
+`scenario_alerts.mjs`, die sich noch inhaltlich auf `drawScenarioLevels()`
+bezogen (u.a. "keeps an Entry on the chart... in lockstep") und damit nach
+der Entfernung falsch geworden wären.
+
+**Fix:** Kommentare in `scenario_alerts.mjs` an drei Stellen (Modul-Header
++ Inline-Kommentar vor dem `targets[0] == null`-Gate) so umformuliert, dass
+sie den aktuellen Stand beschreiben (Alert-Gate begründet sich jetzt rein
+aus "hat einen berechenbaren Zielpreis", nicht mehr aus einer chart-
+zeichnenden Funktion, die es nicht mehr gibt). Keine Verhaltensänderung,
+reine Dokumentations-/Dead-Code-Bereinigung.
+
+**Verifiziert:**
+- `node --check` auf beiden Dateien (`draw.mjs`, `scenario_alerts.mjs`)
+  fehlerfrei.
+- Volle Test-Suite: 94/95 grün, 1 Fehlschlag (`chart_set_timeframe`,
+  erwartet `'1D'` bekam `'1'`) — identisches Muster wie in Teil 47 bereits
+  dokumentiert (State-Abhängigkeit vom parallel laufenden Live-Chart, nicht
+  von dieser Änderung verursacht, die `draw.mjs`-Farben/toten Code betrifft,
+  keine Chart-Logik). Isolierter Re-Run desselben Tests: grün.
+- Live-Chart-Auflösung nach allen Test-Läufen erneut auf `"1"` bestätigt
+  (Teil-39-Konvention weiterhin eingehalten, kein abweichender Zustand
+  hinterlassen).
+- `git fetch origin` vor dieser Notiz: keine neuen Commits auf
+  `origin/main` seit 3f4c659 (Teil 54) — keine Kollisionsgefahr beim
+  nächsten Commit.
+
+**Dateien (geändert):** `scripts/premarket/draw.mjs` (`drawScenarioLevels()`
++ `scenario_entry`/`scenario_sl`/`scenario_tp`-Farben entfernt — bereits
+unstaged vorgefunden, hier nur geprüft/übernommen), `scripts/premarket/
+scenario_alerts.mjs` (3 Kommentarstellen aktualisiert).
+
+---
+
 ## 🆕 Teil 54 — Selbstverschuldetes Doppel-Briefing-Risiko heute Abend + offene Strukturlücke (13.08.2026)
 
 **Auslöser:** Direkte Folge des in Teil 53 vermerkten Testfehlers: der

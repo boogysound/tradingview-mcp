@@ -14,18 +14,15 @@
  * check — same idea as check_ms.mjs for Market Shifts.
  *
  * Widened 29.07.2026 (Teil 12, user-specified): originally only alerted at
- * FULL confluence (metCount === totalCount) — but drawScenarioLevels()
- * (draw.mjs) draws the Entry/SL/TP lines on the chart for ANY scenario with
- * a computed target, regardless of confluence. That gap meant an Entry could
- * appear on the chart with no Telegram message at all explaining it. Now
- * alerts on every scenario that has a drawable target (the same
- * `targets[0] != null` gate drawScenarioLevels itself uses), with a lighter
- * "🔹 POTENZIELLER ENTRY" header + confluence checklist below full
- * confluence, and the original "🟢🟢 ALLE SIGNALE ERFÜLLT 🟢🟢" header once it
- * reaches 100%. The signature includes metCount/totalCount, so a confluence
- * change (in either direction) sends a fresh message with the updated
- * checklist — matching "immer potenzielle Entries" rather than a one-time
- * notification that goes stale.
+ * FULL confluence (metCount === totalCount) — but any scenario with a
+ * computed target (`targets[0] != null`) is a live, actionable setup even
+ * before full confluence. Now alerts on every scenario that has a drawable
+ * target, with a lighter "🔹 POTENZIELLER ENTRY" header + confluence
+ * checklist below full confluence, and the original "🟢🟢 ALLE SIGNALE
+ * ERFÜLLT 🟢🟢" header once it reaches 100%. The signature includes
+ * metCount/totalCount, so a confluence change (in either direction) sends a
+ * fresh message with the updated checklist — matching "immer potenzielle
+ * Entries" rather than a one-time notification that goes stale.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { describeScenario } from './briefing.mjs';
@@ -44,9 +41,7 @@ export async function checkAndAlertScenarioEntries(scenarios) {
   let alertsSent = 0;
 
   for (const s of scenarios || []) {
-    // Same gate drawScenarioLevels() uses to decide whether to draw this
-    // scenario's chart lines at all — keeps "an Entry is on the chart" and
-    // "a Telegram message exists for it" in lockstep.
+    // Only scenarios with a computed target are actionable enough to alert on.
     if (s.targets[0] == null) continue;
     const key = `${s.type}_${s.direction}`;
     const sig = signatureOf(s);
