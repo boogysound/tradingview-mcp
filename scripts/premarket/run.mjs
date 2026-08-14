@@ -6,7 +6,7 @@ import { disconnect } from '/Users/boogy/tradingview-mcp/src/connection.js';
 import * as lib from './lib.mjs';
 import * as state from './state.mjs';
 import { getBerlinHour, fetchBars, sleep, readOrbVwap } from './utils.mjs';
-import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, wasActuallyRemoved } from './draw.mjs';
+import { draw, remove, verifyDottedLinestyleCode, rgbaToTvOverride, COLORS, getLiveShapeIds, wasActuallyRemoved, sweepUntrackedShapes } from './draw.mjs';
 import { buildScenarios, buildBriefing } from './briefing.mjs';
 import { sendTelegramBriefing, sendTelegramPhoto } from './telegram.mjs';
 import { checkAndAlertTrendResumptionMS, checkAndAlertCounterTrendMS } from './ms_alerts.mjs';
@@ -677,6 +677,21 @@ async function main() {
   });
 
   state.writeState(prunedState);
+
+  // Reverse reconciliation (Teil 57, 14.08.2026): the reconcile pass at the
+  // top of main() only catches "state says active, chart doesn't have it" —
+  // this catches the opposite (a live shape the current state has never
+  // heard of, e.g. residue from a past state-file reset). Runs after
+  // writeState so `prunedState` is the final, authoritative set of what
+  // should currently be visible.
+  const keepIds = new Set(prunedState.filter(e => e.status === 'active' || e.status === 'historical').map(e => e.tv_entity_id).filter(Boolean));
+  const sweepResult = await sweepUntrackedShapes(keepIds);
+  if (sweepResult.removed.length) {
+    dataWarnings.push(`${sweepResult.removed.length} nicht getrackte Chart-Shape(s) im System-Label-Format automatisch entfernt (Reverse-Reconciliation): ${sweepResult.removed.map(r => r.text).join(', ')}`);
+  }
+  if (sweepResult.skippedForeign.length) {
+    dataWarnings.push(`${sweepResult.skippedForeign.length} nicht getrackte Chart-Shape(s) gefunden, aber NICHT entfernt (Label passt nicht zum System-Format, evtl. manuell gezeichnet): ${sweepResult.skippedForeign.map(r => r.text || r.id).join(', ')}`);
+  }
 
   // --- entries + briefing (Trend 4H / Zone 4H / FVG-direction / Premium-Discount / Bestätigung 5min) ---
   // "Zone" is fed by the same active 4H S/D levels drawn on the chart (state

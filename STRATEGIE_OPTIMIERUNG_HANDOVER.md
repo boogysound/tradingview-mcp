@@ -4027,6 +4027,145 @@ scenario_alerts.mjs` (3 Kommentarstellen aktualisiert).
 
 ---
 
+## 🆕 Teil 56 — Chart-Leerstand behoben: Symbol driftete auf GBEBROKERS:DE40 zurück, 0 Live-Shapes trotz 20 "aktiver" Zonen im State (14.08.2026)
+
+**Auslöser:** User meldete den Chart als leer ("aus irgendwelchen Gründen").
+
+**Befund (Diagnose, nicht nur Vermutung):**
+- `healthCheck()`: CDP verbunden, aber `chart_symbol: "GBEBROKERS:DE40"` —
+  nicht `TICKMILL:DE40`, wie seit Teil 37 (05.08.2026) erwartet.
+- `getLiveShapeIds()`: 0 Shapes.
+- `state/zones.json`: 20 Einträge weiterhin als `status: 'active'`
+  markiert (4× sd_level_demand, 7× sr_flip_resistance, 2× fvg_bullish,
+  3× sr_flip_support, 2× pdh, 2× pdl) — State und Chart-Realität liefen
+  also auseinander, ohne dass der State selbst irgendeinen Hinweis darauf
+  enthielt.
+- **Root Cause nicht abschließend geklärt** — kein Log-Eintrag/Zeitstempel
+  gefunden, der den Symbol-/Layout-Reset erklärt. Vermutet, aber nicht
+  bestätigt: ähnlich Teil 51 ein harter TradingView-Neustart oder ein
+  Session-/Auth-Aussetzer, der die gespeicherte Layout-Symbolwahl verlor,
+  auf den Default-Broker (GBEBROKERS) zurückfiel und dabei alle
+  Zeichnungen mitnahm. Nur der Endzustand beobachtet, nicht der Moment
+  des Auftretens.
+
+**Maßnahme (User-Entscheidung nach Rückfrage, [[feedback-ask-when-unsure]]):**
+1. Symbol manuell per `chart.setSymbol('TICKMILL:DE40')` zurückgesetzt,
+   Erfolg direkt verifiziert (`chart.symbol()` → `"TICKMILL:DE40"`).
+2. Vollen `run.mjs`-Pipeline-Lauf direkt ausgeführt — einziger bekannter
+   Weg, die im State aktiven Zonen tatsächlich neu auf den Chart zu
+   zeichnen (kein separater "Redraw-only"-Modus vorhanden). User vorab
+   explizit gefragt und zugestimmt, dass das ein zusätzliches, echtes
+   zweites Telegram-Briefing für heute auslöst (nach dem planmäßigen
+   09:20-Lauf) — bewusst akzeptiert, gleiches Vorgehen wie in Teil 51.
+
+**Ablauf/Ergebnis:**
+- Der bestehende Reconciliation-Pass (`run.mjs`, direkt zu Beginn von
+  `main()`) erkannte korrekt: alle 20 "aktiven" State-Einträge sind nicht
+  mehr live → als `orphaned_not_on_chart` markiert (im Telegram-Briefing
+  sichtbar: "20 Zone(n) waren im State aktiv, aber nicht mehr im Chart —
+  aus dem State entfernt").
+- Frische Zonenberechnung aus aktuellen Kursdaten: 30 neue Einträge
+  gezeichnet, Decluttering (`declutter_max_per_group`) entfernte einen
+  Teil davon wieder, um keine Gruppe zu überladen.
+- Telegram-Text + Chart-Foto: beide `status: 200` erfolgreich gesendet.
+- Chart am Ende korrekt wieder auf 1m hinterlassen (Teil-39-Konvention).
+
+**Verifiziert:**
+- `getLiveShapeIds()` vor der Maßnahme: 0. Danach (live erneut geprüft,
+  separater Aufruf nach Lauf-Ende): 33.
+- `run.mjs` Exit-Code 0.
+- `git fetch origin` vor dem Handover-Eintrag: keine neuen Commits auf
+  `origin/main` seit abe457f (Teil 55).
+
+**Offen für eine künftige Sitzung:** Die eigentliche Root Cause des
+Symbol-/Layout-Verlusts ist ungeklärt — nur der Endzustand behoben. Falls
+das wiederholt auftritt, wäre ein Guard denkbar, der bei jedem
+`healthCheck()`-Aufruf das Symbol gegen einen erwarteten Wert
+(`TICKMILL:DE40`) prüft und bei Abweichung sofort per Telegram warnt,
+statt dass es erst auffällt, wenn der User selbst einen leeren Chart
+bemerkt.
+
+**Dateien:** keine Code-Änderung — reine Live-Maßnahme (`setSymbol`,
+`node scripts/premarket/run.mjs`) + Dokumentation.
+
+---
+
+## 🆕 Teil 57 — Reverse-Reconciliation: 17 unbekannte Chart-Orphans gefunden+entfernt, dauerhafter Guard in run.mjs (14.08.2026)
+
+**Auslöser:** User meldete nach dem Teil-56-Redraw "gelbe Kästchen, die
+keinen Sinn machen" und "rote FVGs, die bereits mehrfach durchbrochen
+wurden" (Screenshot), kurz danach zusätzlich "3 PDH/PDL-Linien, das kann
+nicht sein".
+
+**Diagnose (nicht nur Vermutung — jedes der 33 Live-Shapes einzeln per
+`getProperties()` mit Preis/Label abgefragt und gegen `state/zones.json`
+abgeglichen):** Nur 16 der 33 Live-Shapes waren im aktuellen State
+getrackt. Die anderen **17 tauchen in der GESAMTEN Zones-Historie (276
+Einträge, alle Stände, alle Status) an keiner Stelle auf** — trotzdem
+tragen sie exakt das Label-Format dieses Systems ("12H Demand", "FVG
+bearish (15m)", "Supply 4H (gebrochen)", "PDH 26431.0", "PDL 26115.2").
+Darunter waren genau die vom User beschriebenen Elemente: die "gelben
+Kästchen" weit unter dem aktuellen Kurs (26.294,7–25.016,9 Bereich,
+teils >5% entfernt), 3 alte `FVG bearish (15m)`-Rechtecke, und ein
+zweites, altes PDH/PDL-Paar (26431.0/26115.2 statt der korrekten
+heutigen 26490.4/26272.5 — daher die "3 Linien").
+
+**Root Cause:** Die bestehende Reconciliation in `run.mjs` (Zeile 53-89)
+prüft nur eine Richtung — "State sagt aktiv, Chart zeigt's nicht mehr" —
+nie die umgekehrte: ein Live-Shape, von dem der AKTUELLE State nie
+wusste. `state.mjs`s eigener Kommentar zu `isInvalidated()` benennt
+"state file reset/edited by hand" bereits explizit als bekanntes Risiko,
+aber bisher gab es keinen Mechanismus, der die Chart-Seite dieser Drift
+je bereinigt hätte. Die 17 Orphans sind fast sicher Reste eines
+State-Resets irgendwann in der Vergangenheit (diese Woche gab es diverse
+harte TradingView-Neustarts, Teil 41/48/51) — die PDH/PDL-Logik selbst
+(`pdhl_daily_refresh` in `run.mjs`) ist korrekt und war nicht die Ursache.
+
+**Sofortmaßnahme:** Die 17 identifizierten Orphan-IDs live entfernt
+(`remove()` je einzeln, alle 17/17 erfolgreich) — verifiziert:
+`getLiveShapeIds()` vorher 33, danach 16 (= exakt die getrackten
+Einträge).
+
+**Dauerhafter Fix (User-Wunsch: "täglich checken, zur normalen Routine
+hinzufügen"):**
+- **`sweepUntrackedShapes(trackedIds)`** (neu, `draw.mjs`) — fragt
+  `listDrawings()` ab, für jedes Live-Shape NICHT in `trackedIds`: Label-
+  Text per `getProperties()` gegen `OWN_LABEL_PATTERN` (ein Regex, das
+  jedes bekannte Label-Template dieses Systems abdeckt — Level-, Zonen-,
+  FVG-, OB-, PDH/PDL- und SR-Flip-Labels) geprüft. Nur bei Treffer wird
+  entfernt — bewusst konservativ, ein unbekanntes Live-Shape (z.B. eine
+  eigene manuelle Zeichnung des Users) wird NIE angefasst, unabhängig
+  vom `trackedIds`-Status.
+- **In `run.mjs` verdrahtet**, direkt nach `state.writeState(prunedState)`
+  (User-Entscheidung: in den bestehenden 2×-täglichen Lauf integriert,
+  kein separater Job) — `keepIds` aus allen `active`/`historical`-
+  Einträgen von `prunedState`, Ergebnis (entfernt / nicht entfernt weil
+  fremd) landet als `dataWarnings`-Einträge im Telegram-Briefing, damit
+  jede automatische Bereinigung UND jeder Fund eines unbekannten,
+  fremden Shapes sichtbar bleibt statt stillschweigend zu passieren.
+
+**Verifiziert:**
+- `node --check` auf `draw.mjs` + `run.mjs` fehlerfrei.
+- **No-Op-Pfad live getestet:** `sweepUntrackedShapes()` auf dem bereits
+  bereinigten Chart (16 tracked, 0 Orphans) → `removed: []`,
+  `skippedForeign: []`.
+- **Orphan-Erkennung live getestet:** künstliches Test-Shape mit
+  System-Label ("4H Demand"), NICHT in `trackedIds` → korrekt erkannt
+  und entfernt.
+- **Schutz vor fremden Zeichnungen live getestet:** zweites Test-Shape
+  mit unbekanntem Text ("Mein persönlicher Trendkanal"), ebenfalls
+  NICHT in `trackedIds` → korrekt NICHT entfernt (in `skippedForeign`
+  gelandet). Test-Artefakt danach manuell aufgeräumt.
+- Volle Test-Suite: **95/95 grün** (kein Flake dieses Mal).
+- `git fetch origin` vor diesem Eintrag: keine neuen Commits auf
+  `origin/main` seit abe457f (Teil 55).
+
+**Dateien (geändert):** `scripts/premarket/draw.mjs`
+(`sweepUntrackedShapes()` + `OWN_LABEL_PATTERN` neu), `scripts/premarket/
+run.mjs` (Aufruf nach `writeState`, Import ergänzt).
+
+---
+
 ## 🆕 Teil 54 — Selbstverschuldetes Doppel-Briefing-Risiko heute Abend + offene Strukturlücke (13.08.2026)
 
 **Auslöser:** Direkte Folge des in Teil 53 vermerkten Testfehlers: der

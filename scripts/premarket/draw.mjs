@@ -76,6 +76,48 @@ export function wasActuallyRemoved(r) {
   return false;
 }
 
+// Matches every label template this system ever draws (see run.mjs's
+// maybeDrawZone/maybeDrawLevel call sites + PDH/PDL): the reverse-
+// reconciliation half of the check below only ever removes a live shape whose
+// text matches one of these — a live shape it doesn't recognize (e.g. the
+// user's own manual drawing) is always left alone, never touched.
+const OWN_LABEL_PATTERN = /^((12H|4H|1H|15m|5m) (Demand|Supply)|(Demand|Supply) (12H|4H)( \(gebrochen\))?|FVG (bullish|bearish) \([^)]+\)|OB (bullish|bearish) \([^)]+\)|PD[HL] [\d.,]+|(Support|Resistance) [\d.,]+ \(ex-[^)]+\))$/;
+
+// Reverse reconciliation (14.08.2026): the existing state->chart reconcile in
+// run.mjs only ever catches "state says active, chart doesn't have it" — it
+// has no way to notice the opposite: a live shape the CURRENT state doesn't
+// know about at all (found live same day, 17 such orphans — none present
+// anywhere in zones.json's history, all in this system's own label format,
+// almost certainly residue from a state file reset/edit at some point in the
+// past; state.mjs's own isInvalidated() doc-comment already names "state file
+// reset/edited by hand" as a known risk, but nothing ever swept the chart
+// side of that drift). Deliberately conservative: `trackedIds` must contain
+// every tv_entity_id the CALLER currently considers legitimately on the
+// chart (active + historical) — a live shape not in that set is only removed
+// if its label text also matches OWN_LABEL_PATTERN, so a genuine unrelated
+// manual drawing is never at risk.
+export async function sweepUntrackedShapes(trackedIds) {
+  const live = await listDrawings();
+  const removed = [];
+  const skippedForeign = [];
+  for (const s of live.shapes || []) {
+    if (trackedIds.has(s.id)) continue;
+    let text;
+    try {
+      const props = await getProperties({ entity_id: s.id });
+      text = props?.properties?.text;
+    } catch { /* leave text undefined — treated as foreign below */ }
+    if (typeof text === 'string' && OWN_LABEL_PATTERN.test(text)) {
+      const r = await remove(s.id);
+      if (wasActuallyRemoved(r)) removed.push({ id: s.id, text });
+      else skippedForeign.push({ id: s.id, text: `${text} (Entfernen fehlgeschlagen)` });
+    } else {
+      skippedForeign.push({ id: s.id, text });
+    }
+  }
+  return { removed, skippedForeign };
+}
+
 export const COLORS = {
   sd_zone_12h: '#800080',
   sd_zone_4h: '#FFA500',
