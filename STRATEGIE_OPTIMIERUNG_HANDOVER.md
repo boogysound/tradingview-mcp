@@ -4166,6 +4166,80 @@ run.mjs` (Aufruf nach `writeState`, Import ergänzt).
 
 ---
 
+## 🆕 Teil 58 — Root Cause für den Symbol-Drift aus Teil 56 gefunden: kaputter Fehlerpfad in einem Backtest-Skript (19.08.2026)
+
+**Auslöser:** User fragte, ob PDH/PDL/Zonen/Linien korrekt eingezeichnet
+sind. Live-Check aller 13 Chart-Shapes gegen `state/zones.json` (14
+getrackte Einträge): 11 stimmten, aber **PDH, PDL und eine historische
+Zone waren trotz `status: active` NICHT mehr live** — beide heute im
+09:20-Lauf korrekt gezeichnet, 34 Minuten später bereits wieder weg,
+ohne dass die Vorwärts-Reconciliation (die das erst beim NÄCHSTEN Lauf,
+22:00, korrigiert hätte) bis dahin gegriffen hat. Zusätzlich zeigte
+`chart_symbol` wieder `GBEBROKERS:DE40` statt `TICKMILL:DE40` — **obwohl
+der TradingView-Prozess seit dem 13.08. durchgehend ohne Neustart lief**
+(`ps` bestätigt, gleiche PID seit Start). Das widerlegt die in Teil 56
+vermutete Ursache ("harter Neustart") und macht das zur eigentlich
+ungeklärten Root Cause dieses wiederkehrenden Problems.
+
+**Root Cause gefunden (Code-Review, plausibel aber nicht durch einen
+Live-Log-Fund hundertprozentig bestätigt):** `grep -rn "GBEBROKERS"`
+über den ganzen Baum zeigte 3 Treffer in `check_s3.mjs`/`check_ut.mjs`/
+`check_strategie_c.mjs` — alle nur veraltete KOMMENTARE, keine
+`setSymbol()`-Aufrufe, also nicht die Ursache. Der einzige Treffer mit
+einem echten Datenwert war `backtests/fetch_new_instruments.mjs`
+(ungetrackt, Backtest-Hilfsskript vom 30.07.2026 für die S1/S5/DailyDax-
+Nachbauten) — läuft mehrere Jobs, die den Chart temporär auf
+`GBEBROKERS:USTEC`/`GBEBROKERS:DE40` umschalten, um Historie zu laden,
+und stellt am Ende das beim Start erfasste Original-Symbol wieder her.
+**Der äußere Fehlerpfad (`main().catch(...)`) hatte aber nur einen
+Kommentar `// best-effort restore even on failure` — ohne jeden
+tatsächlichen Restore-Code.** Wenn der finale Restore-Block selbst
+scheitert (z.B. CDP-Hänger) oder irgendetwas zwischen den Jobs unerwartet
+durchbricht, bleibt der Chart auf dem Symbol des zuletzt gelaufenen Jobs
+stehen — und der letzte Job in der `JOBS`-Liste ist exakt
+`GBEBROKERS:DE40`. Passt exakt zum beobachteten Symptom, auch ohne
+TradingView-Neustart.
+
+**Fix** (`backtests/fetch_new_instruments.mjs`, ausnahmsweise doch
+committet — konkrete Fix-Datei in einem sonst bewusst ungetrackten
+Verzeichnis): der Restore-Block (setSymbol/setTimeframe/scrollToRealtime)
+läuft jetzt in einem `finally` um die Job-Schleife, statt nur danach —
+greift damit auch, wenn irgendetwas zwischen den Jobs durchbricht. Jeder
+einzelne Restore-Schritt selbst ist zusätzlich `.catch()`-abgesichert und
+loggt bei Fehlschlag statt zu werfen, damit ein fehlschlagender
+Teil-Restore nicht den ganzen Rest (Ergebnisse loggen, `disconnect()`,
+sauberer Exit) verhindert. Der äußere `main().catch()`-Kommentar (der
+nie etwas tat) entfernt, da der Restore jetzt strukturell garantiert
+versucht wird.
+
+**Sofortmaßnahme:** Symbol manuell zurück auf `TICKMILL:DE40` gesetzt,
+verifiziert. PDH/PDL/historische Zone bewusst NICHT sofort neu gezeichnet
+(User-Entscheidung) — das übernimmt automatisch der planmäßige 22:00-
+evening-sync-Lauf über die bestehende Vorwärts-Reconciliation, ohne ein
+zusätzliches, ungeplantes Telegram-Briefing für heute auszulösen.
+
+**Verifiziert:**
+- `node --check backtests/fetch_new_instruments.mjs` fehlerfrei.
+- Symbol nach manuellem `setSymbol`: `TICKMILL:DE40` bestätigt.
+- **Nicht live verifiziert:** der Fix selbst wurde nicht durch einen
+  erzwungenen Fehlschlag mitten im Skript getestet (hätte einen echten,
+  mehrminütigen Backtest-Datenabruf gegen die Live-Instanz gebraucht,
+  ohne klaren Mehrwert für ein reines Fehlerpfad-Robustheits-Fix) — die
+  Absicherung selbst ist Standard-`try/finally`, kein neues Muster.
+- `git fetch origin`: keine neuen Commits auf `origin/main` seit f13f088
+  (Teil 57).
+
+**Offen:** Die 2 unbenannten, nicht getrackten Linien (`sfruYb`,
+`NfiDAs`, kein Label-Text) auf dem Chart wurden gefunden, aber nicht
+untersucht — der neue Sweep aus Teil 57 lässt sie bewusst in Ruhe, da
+`OWN_LABEL_PATTERN` einen Text zum Matchen braucht. Herkunft ungeklärt.
+
+**Dateien (geändert):** `backtests/fetch_new_instruments.mjs`
+(Restore-Block in `finally`, Fehlerpfad abgesichert) — ausnahmsweise
+committet trotz sonst ungetrackter `backtests/`.
+
+---
+
 ## 🆕 Teil 54 — Selbstverschuldetes Doppel-Briefing-Risiko heute Abend + offene Strukturlücke (13.08.2026)
 
 **Auslöser:** Direkte Folge des in Teil 53 vermerkten Testfehlers: der
