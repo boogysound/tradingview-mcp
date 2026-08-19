@@ -4240,6 +4240,88 @@ committet trotz sonst ungetrackter `backtests/`.
 
 ---
 
+## 🆕 Teil 59 — OFFENES PROBLEM: Chart wurde komplett leergefegt (0 Shapes), Symbol-Drift ist ein wiederkehrendes Muster über mehrere Tage, keine Root Cause gefunden (19.08.2026)
+
+**⚠️ Ungelöst — reine Dokumentation für eine künftige Sitzung, kein Fix
+in dieser Notiz.**
+
+**Teil 1 — Symbol-Drift ist KEIN Einzelfall (Korrektur zu Teil 56/58):**
+`grep "Symbol: GBEBROKERS" logs/morning-briefing.log` zeigt den
+Pre-Flight-Log von `start-with-tv.mjs` (läuft VOR jedem Tages-Run) mit
+`GBEBROKERS:DE40` an mindestens 4 verschiedenen Tagen: **14.08., 17.08.,
+18.08., 19.08.** — nicht nur einmalig wie in Teil 56 angenommen. Der
+Fix aus Teil 58 (`fetch_new_instruments.mjs`s Fehlerpfad) ist ein
+plausibler Beitrag, aber dieses Skript ist ein manuelles Ein-Mal-Tool —
+es erklärt kaum, warum das Symbol an so vielen unterschiedlichen Tagen
+immer wieder zurückdriftet. Zusätzlicher Befund: `run.mjs`s eigener
+Symbol-Check (Zeile 47) prüft nur `/DE40/i` — **GBEBROKERS:DE40 erfüllt
+das genauso wie TICKMILL:DE40**, es gibt also aktuell KEINE automatische
+Warnung, wenn der Broker (nicht nur das Instrument) falsch ist. Das
+heißt: an all diesen Tagen liefen die Analysen wahrscheinlich stillschweigend
+auf GBEBROKERS-Kursdaten statt Tickmill, ohne dass irgendein
+`dataWarning` das je gemeldet hätte.
+
+**Teil 2 — Kompletter Chart-Wipe heute (19.08.), keine Erklärung
+gefunden:** Um 09:54 Uhr waren 13 Live-Shapes korrekt vorhanden (11
+getrackte + 2 offenbar von Hand gezeichnete Linien ohne Label,
+`sfruYb`/`NfiDAs`, s.u.). Um 11:17 Uhr: **0 Live-Shapes** — auch die 2
+manuellen Linien waren weg. Explizit geprüft und ausgeschlossen:
+- **Kein TradingView-Neustart:** `ps` zeigt durchgehend dieselbe PID
+  (23630) seit dem 13.08., keine neue Prozess-Generation.
+- **Keine unserer Scripts:** `logs/scenario-check.log` (der einzige
+  periodische Check-Job, der `remove()` aufruft) zeigt zum fraglichen
+  Zeitfenster nur einzelne FVG-Mitigierungen/Level-Konvertierungen
+  (max. 1-12 Einträge betroffen je Lauf), keinen Massen-Delete.
+  `state/zones.json` denkt weiterhin, alle 14 Einträge seien
+  `active`/`historical` — der State wurde also nicht angefasst, nur der
+  Chart selbst geleert.
+- **Keine der Nuclear-/Cleanup-Skripte** (`nuclear_cleanup.mjs` etc.)
+  liefen laut Prozessliste zum fraglichen Zeitpunkt.
+- **User bestätigt explizit: keine manuelle Aktion seinerseits.**
+
+Root Cause bleibt damit **komplett offen**. Mögliche Kandidaten für eine
+künftige Sitzung: ein TradingView-internes Layout-Autosave/-Sync-Event
+(z.B. Cloud-Sync mit einem anderen Gerät/Session, das eine ältere/leere
+Layout-Version überschreibt), ein Browser-Extension- oder OS-Level-
+Event, oder ein bisher unbeobachteter Interaktionspfad in einem der 15-
+Minuten-Check-Jobs, der nicht über `remove()` (und damit nicht im Log)
+läuft.
+
+**Teil 3 — Die 2 unbenannten Linien (`sfruYb`, `NfiDAs`), untersucht kurz
+bevor sie im Wipe verschwanden:**
+
+| ID | Preis | Datum | Befund |
+|---|---|---|---|
+| `sfruYb` | 25890,067330858332 | 03.07.2026 | 12 Nachkommastellen, kein Label |
+| `NfiDAs` | 26083,735773852248 | 05.08.2026 | 12 Nachkommastellen, kein Label |
+
+Beide fast sicher **von Hand in TradingView gezeichnet** (unser Code
+rundet jeden Preis via `.toFixed(1)` und vergibt immer ein Label) — daher
+korrekt von Teil 57s `sweepUntrackedShapes()` verschont. Konnten nicht
+tiefer untersucht werden, da sie im Wipe (Teil 2) verschwanden, bevor
+eine zweite Abfrage lief.
+
+**Für die nächste Sitzung:**
+1. `run.mjs`s Symbol-Check auf den vollen erwarteten Wert
+   (`TICKMILL:DE40`, nicht nur `/DE40/i`) verschärfen, damit ein
+   Broker-Drift wenigstens sichtbar als `dataWarning` im Briefing
+   auftaucht, auch wenn die Ursache weiter unklar bleibt.
+2. Falls der komplette Wipe sich wiederholt: sofort (bevor irgendein
+   Script erneut zeichnet) `getAllShapes()`/TradingView-eigene
+   Undo-Historie/Cloud-Sync-Log prüfen, so nah wie möglich am Moment des
+   Auftretens — diesmal lag zwischen Beobachtung und Untersuchung schon
+   eine Weile, was jede Spur (außer Prozessliste/eigene Logs) verwischt
+   hat.
+3. Erwägen, ob ein spürbar häufigerer, reiner Lese-Health-Check (nur
+   `getLiveShapeIds().size`, kein Redraw) sinnvoll wäre, um den
+   Zeitpunkt eines Wipes enger einzugrenzen als die aktuellen 2×
+   täglichen Haupt-Läufe das erlauben.
+
+**Dateien:** keine Code-Änderung — reine Dokumentation eines offenen,
+ungelösten Problems.
+
+---
+
 ## 🆕 Teil 54 — Selbstverschuldetes Doppel-Briefing-Risiko heute Abend + offene Strukturlücke (13.08.2026)
 
 **Auslöser:** Direkte Folge des in Teil 53 vermerkten Testfehlers: der
